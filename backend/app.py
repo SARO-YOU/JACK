@@ -86,8 +86,10 @@ def register():
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
-
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"Registration Error: {error_details}")
+        return jsonify({'error': str(e), 'details': error_details}), 500
 
 @app.route('/api/login', methods=['POST'])
 def login():
