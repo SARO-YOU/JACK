@@ -69,8 +69,11 @@ def register():
         db.session.add(user)
         db.session.commit()
         
-        # Send welcome email
-        send_welcome_email(email, name)
+     # Send welcome email (non-blocking)
+        try:
+            send_welcome_email(email, name)
+        except Exception as email_error:
+            print(f"Email sending failed: {email_error}")
         
         # Create access token
         access_token = create_access_token(identity=user.id)
@@ -564,9 +567,12 @@ def create_order():
         
         db.session.commit()
         
-        # Send confirmation email
-        user = User.query.get(user_id)
-        send_order_confirmation(user.email, user.name, order.id, total_price)
+        # Send confirmation email (non-blocking)
+        try:
+            user = User.query.get(user_id)
+            send_order_confirmation(user.email, user.name, order.id, total_price)
+        except Exception as email_error:
+            print(f"Email sending failed: {email_error}")
         
         return jsonify({
             'message': 'Order created successfully',
