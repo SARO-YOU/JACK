@@ -1,43 +1,38 @@
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+import requests
 from config import Config
 
 def send_email(to_email, subject, body, html=None):
-    """Send email using Gmail SMTP"""
+    """Send email using Resend API"""
     try:
-        # Skip if email credentials not configured
-        if not Config.EMAIL_USER or not Config.EMAIL_PASSWORD:
-            print(f"⚠️ Email credentials not configured - skipping email to {to_email}")
+        # Skip if Resend API key not configured
+        if not hasattr(Config, 'RESEND_API_KEY') or not Config.RESEND_API_KEY:
+            print(f"⚠️ Resend API key not configured - skipping email to {to_email}")
             return False
         
-        # Set a timeout to prevent hanging
-        import socket
-        socket.setdefaulttimeout(10)  # 10 second timeout
+        # Resend API endpoint
+        url = "https://api.resend.com/emails"
         
-        msg = MIMEMultipart('alternative')
-        msg['From'] = Config.EMAIL_USER
-        msg['To'] = to_email
-        msg['Subject'] = subject
-
-        # Add plain text part
-        msg.attach(MIMEText(body, 'plain'))
-
-        # Add HTML part if provided
-        if html:
-            msg.attach(MIMEText(html, 'html'))
-
-        # Connect to SMTP server with timeout
-        server = smtplib.SMTP(Config.SMTP_SERVER, Config.SMTP_PORT, timeout=10)
-        server.starttls()
-        server.login(Config.EMAIL_USER, Config.EMAIL_PASSWORD)
-
-        # Send email
-        server.send_message(msg)
-        server.quit()
-
-        print(f"✅ Email sent successfully to {to_email}")
-        return True
+        headers = {
+            "Authorization": f"Bearer {Config.RESEND_API_KEY}",
+            "Content-Type": "application/json"
+        }
+        
+        payload = {
+            "from": "Noory Shop <onboarding@resend.dev>",  # Resend's test domain
+            "to": [to_email],
+            "subject": subject,
+            "html": html if html else f"<pre>{body}</pre>"
+        }
+        
+        response = requests.post(url, json=payload, headers=headers, timeout=10)
+        
+        if response.status_code == 200:
+            print(f"✅ Email sent successfully to {to_email}")
+            return True
+        else:
+            print(f"❌ Error sending email to {to_email}: {response.text}")
+            return False
+            
     except Exception as e:
         print(f"❌ Error sending email to {to_email}: {str(e)}")
         return False

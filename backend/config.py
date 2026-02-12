@@ -12,11 +12,14 @@ class Config:
     JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY')
     JWT_ACCESS_TOKEN_EXPIRES = 86400  # 24 hours
     
-    # Email
+    # Email (Gmail SMTP - may not work on Render free tier)
     EMAIL_USER = os.getenv('EMAIL_USER')
     EMAIL_PASSWORD = os.getenv('EMAIL_PASSWORD')
     SMTP_SERVER = os.getenv('SMTP_SERVER', 'smtp.gmail.com')
     SMTP_PORT = int(os.getenv('SMTP_PORT', 587))
+    
+    # Resend (for email sending)
+    RESEND_API_KEY = os.getenv('RESEND_API_KEY')
     
     # Admin
     ADMIN_PASSWORD = os.getenv('ADMIN_PASSWORD')
