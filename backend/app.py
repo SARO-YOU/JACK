@@ -26,9 +26,7 @@ db.init_app(app)
 migrate = Migrate(app, db)
 jwt = JWTManager(app)
 
-# Create tables
-with app.app_context():
-    db.create_all()
+
 
 
 # ============================================
