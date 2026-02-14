@@ -67,14 +67,14 @@ def register():
         db.session.add(user)
         db.session.commit()
         
-     # Send welcome email (non-blocking)
+        # Send welcome email (non-blocking)
         try:
             send_welcome_email(email, name)
         except Exception as email_error:
             print(f"Email sending failed: {email_error}")
         
         # Create access token
-        access_token = create_access_token(identity=user.id)
+        access_token = create_access_token(identity=str(user.id))
         
         return jsonify({
             'message': 'Registration successful',
@@ -110,7 +110,7 @@ def login():
                 'role': 'admin'
             }
             access_token = create_access_token(
-                identity=0,
+                identity="0",
                 additional_claims={'role': 'admin', 'name': identifier}
             )
             return jsonify({
@@ -124,7 +124,7 @@ def login():
             driver = Driver.query.filter_by(driver_identity=identifier).first()
             if driver and driver.secret_key == password and driver.approved:
                 access_token = create_access_token(
-                    identity=driver.user_id,
+                    identity=str(driver.user_id),
                     additional_claims={'role': 'driver', 'driver_id': driver.id}
                 )
                 return jsonify({
@@ -143,7 +143,7 @@ def login():
             return jsonify({'error': 'Invalid credentials'}), 401
         
         access_token = create_access_token(
-            identity=user.id,
+            identity=str(user.id),
             additional_claims={'role': user.role}
         )
         
@@ -169,7 +169,7 @@ def get_profile():
     """Get current user profile"""
     try:
         user_id = get_jwt_identity()
-        user = User.query.get(user_id)
+        user = User.query.get(int(user_id))
         
         if not user:
             return jsonify({'error': 'User not found'}), 404
@@ -191,7 +191,7 @@ def update_profile():
     """Update user profile"""
     try:
         user_id = get_jwt_identity()
-        user = User.query.get(user_id)
+        user = User.query.get(int(user_id))
         
         if not user:
             return jsonify({'error': 'User not found'}), 404
@@ -355,7 +355,7 @@ def get_cart():
     """Get user's cart"""
     try:
         user_id = get_jwt_identity()
-        cart_items = CartItem.query.filter_by(user_id=user_id).all()
+        cart_items = CartItem.query.filter_by(user_id=int(user_id)).all()
         
         total = sum(item.product.price * item.quantity for item in cart_items)
         
@@ -386,7 +386,7 @@ def add_to_cart():
         
         # Check if item already in cart
         cart_item = CartItem.query.filter_by(
-            user_id=user_id,
+            user_id=int(user_id),
             product_id=product_id
         ).first()
         
@@ -394,7 +394,7 @@ def add_to_cart():
             cart_item.quantity += quantity
         else:
             cart_item = CartItem(
-                user_id=user_id,
+                user_id=int(user_id),
                 product_id=product_id,
                 quantity=quantity
             )
@@ -418,7 +418,7 @@ def update_cart_item(cart_item_id):
     """Update cart item quantity"""
     try:
         user_id = get_jwt_identity()
-        cart_item = CartItem.query.filter_by(id=cart_item_id, user_id=user_id).first()
+        cart_item = CartItem.query.filter_by(id=cart_item_id, user_id=int(user_id)).first()
         
         if not cart_item:
             return jsonify({'error': 'Cart item not found'}), 404
@@ -446,7 +446,7 @@ def remove_from_cart(cart_item_id):
     """Remove item from cart"""
     try:
         user_id = get_jwt_identity()
-        cart_item = CartItem.query.filter_by(id=cart_item_id, user_id=user_id).first()
+        cart_item = CartItem.query.filter_by(id=cart_item_id, user_id=int(user_id)).first()
         
         if not cart_item:
             return jsonify({'error': 'Cart item not found'}), 404
@@ -467,7 +467,7 @@ def clear_cart():
     """Clear all items from cart"""
     try:
         user_id = get_jwt_identity()
-        CartItem.query.filter_by(user_id=user_id).delete()
+        CartItem.query.filter_by(user_id=int(user_id)).delete()
         db.session.commit()
         
         return jsonify({'message': 'Cart cleared'}), 200
@@ -487,7 +487,7 @@ def get_orders():
     """Get user's orders"""
     try:
         user_id = get_jwt_identity()
-        orders = Order.query.filter_by(user_id=user_id).order_by(Order.created_at.desc()).all()
+        orders = Order.query.filter_by(user_id=int(user_id)).order_by(Order.created_at.desc()).all()
         
         return jsonify({
             'orders': [order.to_dict() for order in orders]
@@ -509,7 +509,7 @@ def get_order(order_id):
             return jsonify({'error': 'Order not found'}), 404
         
         # Check if user owns this order
-        if order.user_id != user_id:
+        if order.user_id != int(user_id):
             return jsonify({'error': 'Unauthorized'}), 403
         
         return jsonify({'order': order.to_dict()}), 200
@@ -527,7 +527,7 @@ def create_order():
         data = request.get_json()
         
         # Get cart items
-        cart_items = CartItem.query.filter_by(user_id=user_id).all()
+        cart_items = CartItem.query.filter_by(user_id=int(user_id)).all()
         
         if not cart_items:
             return jsonify({'error': 'Cart is empty'}), 400
@@ -539,7 +539,7 @@ def create_order():
         
         # Create order
         order = Order(
-            user_id=user_id,
+            user_id=int(user_id),
             total_products_price=total_products,
             delivery_fee=delivery_fee,
             total_price=total_price,
@@ -563,13 +563,13 @@ def create_order():
             db.session.add(order_item)
         
         # Clear cart
-        CartItem.query.filter_by(user_id=user_id).delete()
+        CartItem.query.filter_by(user_id=int(user_id)).delete()
         
         db.session.commit()
         
         # Send confirmation email (non-blocking)
         try:
-            user = User.query.get(user_id)
+            user = User.query.get(int(user_id))
             send_order_confirmation(user.email, user.name, order.id, total_price)
         except Exception as email_error:
             print(f"Email sending failed: {email_error}")
@@ -776,6 +776,8 @@ def submit_customer_feedback():
             from flask_jwt_extended import verify_jwt_in_request
             verify_jwt_in_request(optional=True)
             user_id = get_jwt_identity()
+            if user_id:
+                user_id = int(user_id)
         except:
             pass
         
