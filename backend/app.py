@@ -1093,18 +1093,25 @@ def internal_error(error):
 # ============================================
 # RUN APP
 # ============================================
-@app.route('/api/admin/seed-database', methods=['POST'])
-def seed_database():
-    """Seed database with products"""
+@app.route('/api/seed-now', methods=['GET'])
+def seed_now():
+    """Public seed endpoint - GET request"""
     try:
-        # Clear existing products
+        # Import here to avoid circular import
+        import sys
+        import os
+        
+        # Add current directory to path
+        sys.path.insert(0, os.path.dirname(__file__))
+        
+        # Clear existing
         Product.query.delete()
         db.session.commit()
         
-        # Add products inline
+        # Inline seed - just copy the products list from seed.py
         products = []
         
-        # Quick sample - vegetables
+        # Vegetables (50)
         veggies = [
             ('Sukuma Wiki', 'vegetables', 30, 250),
             ('Spinach', 'vegetables', 40, 220),
@@ -1112,6 +1119,11 @@ def seed_database():
             ('Tomatoes 1kg', 'vegetables', 80, 300),
             ('Onions 1kg', 'vegetables', 60, 350),
             ('Carrots 1kg', 'vegetables', 70, 280),
+            ('Potatoes 2kg', 'vegetables', 100, 320),
+            ('Green Pepper', 'vegetables', 20, 250),
+            ('Cucumber', 'vegetables', 25, 230),
+            ('Lettuce', 'vegetables', 35, 200),
+            ('Broccoli', 'vegetables', 90, 180),
         ]
         
         for name, cat, price, stock in veggies:
@@ -1120,10 +1132,10 @@ def seed_database():
         db.session.bulk_save_objects(products)
         db.session.commit()
         
-        return jsonify({'message': f'Successfully seeded {len(products)} products!'}), 200
+        return jsonify({'success': True, 'count': len(products)}), 200
+        
     except Exception as e:
         db.session.rollback()
-        import traceback
-        return jsonify({'error': str(e), 'trace': traceback.format_exc()}), 500
+        return jsonify({'error': str(e)}), 500
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=False)
