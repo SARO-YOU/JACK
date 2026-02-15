@@ -1093,6 +1093,14 @@ def internal_error(error):
 # ============================================
 # RUN APP
 # ============================================
-
+@app.route('/api/admin/seed-database', methods=['POST'])
+def seed_database():
+    """Seed database with products (Admin only)"""
+    try:
+        from seed import seed_products
+        count = seed_products()
+        return jsonify({'message': f'Successfully seeded {count} products!'}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=False)
