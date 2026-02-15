@@ -1095,12 +1095,35 @@ def internal_error(error):
 # ============================================
 @app.route('/api/admin/seed-database', methods=['POST'])
 def seed_database():
-    """Seed database with products (Admin only)"""
+    """Seed database with products"""
     try:
-        from seed import seed_products
-        count = seed_products()
-        return jsonify({'message': f'Successfully seeded {count} products!'}), 200
+        # Clear existing products
+        Product.query.delete()
+        db.session.commit()
+        
+        # Add products inline
+        products = []
+        
+        # Quick sample - vegetables
+        veggies = [
+            ('Sukuma Wiki', 'vegetables', 30, 250),
+            ('Spinach', 'vegetables', 40, 220),
+            ('Cabbage', 'vegetables', 50, 200),
+            ('Tomatoes 1kg', 'vegetables', 80, 300),
+            ('Onions 1kg', 'vegetables', 60, 350),
+            ('Carrots 1kg', 'vegetables', 70, 280),
+        ]
+        
+        for name, cat, price, stock in veggies:
+            products.append(Product(name=name, category=cat, price=price, stock=stock, description=f'Fresh {name}'))
+        
+        db.session.bulk_save_objects(products)
+        db.session.commit()
+        
+        return jsonify({'message': f'Successfully seeded {len(products)} products!'}), 200
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        db.session.rollback()
+        import traceback
+        return jsonify({'error': str(e), 'trace': traceback.format_exc()}), 500
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=False)
