@@ -1097,42 +1097,62 @@ def internal_error(error):
 def seed_now():
     """Public seed endpoint - GET request"""
     try:
-        # Import here to avoid circular import
-        import sys
-        import os
+        # DON'T delete - just add new products
+        # Check how many products exist
+        existing_count = Product.query.count()
         
-        # Add current directory to path
-        sys.path.insert(0, os.path.dirname(__file__))
+        if existing_count > 100:
+            return jsonify({'message': f'Already have {existing_count} products. Skipping seed.'}), 200
         
-        # Clear existing
-        Product.query.delete()
-        db.session.commit()
-        
-        # Inline seed - just copy the products list from seed.py
+        # Add products
         products = []
         
         # Vegetables (50)
         veggies = [
-            ('Sukuma Wiki', 'vegetables', 30, 250),
-            ('Spinach', 'vegetables', 40, 220),
-            ('Cabbage', 'vegetables', 50, 200),
-            ('Tomatoes 1kg', 'vegetables', 80, 300),
-            ('Onions 1kg', 'vegetables', 60, 350),
-            ('Carrots 1kg', 'vegetables', 70, 280),
-            ('Potatoes 2kg', 'vegetables', 100, 320),
-            ('Green Pepper', 'vegetables', 20, 250),
-            ('Cucumber', 'vegetables', 25, 230),
-            ('Lettuce', 'vegetables', 35, 200),
-            ('Broccoli', 'vegetables', 90, 180),
+            ('Sukuma Wiki Fresh', 'vegetables', 30, 250),
+            ('Spinach Organic', 'vegetables', 40, 220),
+            ('Cabbage Whole Head', 'vegetables', 50, 200),
+            ('Tomatoes Ripe 1kg', 'vegetables', 80, 300),
+            ('Red Onions 1kg', 'vegetables', 60, 350),
+            ('Sweet Carrots 1kg', 'vegetables', 70, 280),
+            ('Irish Potatoes 2kg', 'vegetables', 100, 320),
+            ('Green Bell Pepper', 'vegetables', 20, 250),
+            ('Fresh Cucumber', 'vegetables', 25, 230),
+            ('Crispy Lettuce', 'vegetables', 35, 200),
+            ('Broccoli Fresh', 'vegetables', 90, 180),
+            ('Cauliflower White', 'vegetables', 85, 190),
+            ('Dhania Bundle Fresh', 'vegetables', 20, 280),
+            ('Spring Onions Bundle', 'vegetables', 25, 260),
+            ('Garlic Bulbs 250g', 'vegetables', 150, 220),
+            ('Ginger Root 250g', 'vegetables', 120, 240),
+            ('Fresh Beetroot', 'vegetables', 60, 200),
+            ('Sweet Potato 1kg', 'vegetables', 80, 250),
+            ('Pumpkin Whole', 'vegetables', 100, 180),
+            ('Fresh Eggplant', 'vegetables', 45, 210),
+            ('Red Bell Pepper', 'vegetables', 30, 200),
+            ('Yellow Bell Pepper', 'vegetables', 30, 190),
+            ('Fresh Zucchini', 'vegetables', 50, 170),
+            ('Button Mushrooms 250g', 'vegetables', 180, 150),
+            ('Baby Corn Pack', 'vegetables', 120, 180),
+            ('Green Beans 500g', 'vegetables', 90, 200),
+            ('Garden Peas 500g', 'vegetables', 100, 180),
+            ('Fresh Leeks', 'vegetables', 60, 160),
+            ('Fresh Celery', 'vegetables', 70, 150),
+            ('Arrowroots 1kg', 'vegetables', 110, 200),
         ]
         
         for name, cat, price, stock in veggies:
-            products.append(Product(name=name, category=cat, price=price, stock=stock, description=f'Fresh {name}'))
+            # Check if product already exists
+            existing = Product.query.filter_by(name=name).first()
+            if not existing:
+                products.append(Product(name=name, category=cat, price=price, stock=stock, description=f'{name}'))
         
-        db.session.bulk_save_objects(products)
-        db.session.commit()
+        if products:
+            db.session.bulk_save_objects(products)
+            db.session.commit()
         
-        return jsonify({'success': True, 'count': len(products)}), 200
+        total = Product.query.count()
+        return jsonify({'success': True, 'added': len(products), 'total': total}), 200
         
     except Exception as e:
         db.session.rollback()
