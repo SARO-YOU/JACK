@@ -35,12 +35,10 @@ jwt = JWTManager(app)
 def seed_now():
     """Seed database with 500+ products"""
     try:
-        # Check existing
         existing = Product.query.count()
         if existing > 400:
             return jsonify({'message': f'Already have {existing} products'}), 200
         
-        # Clear ALL products (CASCADE will handle foreign keys)
         try:
             Product.query.delete()
             db.session.commit()
@@ -370,7 +368,6 @@ def seed_now():
         for name, price, stock in household_items:
             products.append(Product(name=name, category='household', price=price, stock=stock, description=f'{name}'))
         
-        # Save all
         db.session.bulk_save_objects(products)
         db.session.commit()
         
@@ -486,21 +483,6 @@ def get_products():
             products = Product.query.all()
         
         return jsonify({'products': [product.to_dict() for product in products]}), 200
-        
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/products/<int:product_id>', methods=['GET'])
-def get_product(product_id):
-    """Get single product"""
-    try:
-        product = Product.query.get(product_id)
-        
-        if not product:
-            return jsonify({'error': 'Product not found'}), 404
-        
-        return jsonify({'product': product.to_dict()}), 200
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -646,7 +628,6 @@ def admin_dashboard():
         
         completed_orders = Order.query.filter_by(payment_status='completed').all()
         total_revenue = sum(order.total_price for order in completed_orders)
-        total_profit = sum(order.total_price - order.delivery_fee for order in completed_orders)
         
         recent_orders = Order.query.order_by(Order.created_at.desc()).limit(10).all()
         
@@ -656,7 +637,6 @@ def admin_dashboard():
                 'total_customers': total_customers,
                 'total_drivers': total_drivers,
                 'total_revenue': total_revenue,
-                'total_profit': total_profit
             },
             'recent_orders': [order.to_dict() for order in recent_orders]
         }), 200
@@ -665,83 +645,86 @@ def admin_dashboard():
         return jsonify({'error': str(e)}), 500
 
 
-@app.route('/api/admin/products', methods=['POST'])
+# ============================================
+# M-PESA ROUTES
+# ============================================
+
+from mpesa import mpesa
+
+@app.route('/api/mpesa/stk-push', methods=['POST'])
 @jwt_required()
-def create_product():
-    """Create new product (Admin only)"""
+def mpesa_stk_push():
+    """Initiate M-Pesa STK Push"""
     try:
+        user_id = get_jwt_identity()
         data = request.get_json()
         
-        product = Product(
-            name=data['name'],
-            category=data['category'],
-            price=float(data['price']),
-            image_url=data.get('image_url'),
-            stock=int(data.get('stock', 0)),
-            description=data.get('description')
+        phone_number = data.get('phone_number')
+        amount = data.get('amount')
+        order_id = data.get('order_id', 'ORDER')
+        
+        if not all([phone_number, amount]):
+            return jsonify({'error': 'Phone number and amount required'}), 400
+        
+        result = mpesa.stk_push(
+            phone_number=phone_number,
+            amount=amount,
+            account_reference=f'NOORY-{order_id}',
+            transaction_desc='Noory Shop Payment'
         )
         
-        db.session.add(product)
-        db.session.commit()
-        
-        return jsonify({'message': 'Product created successfully', 'product': product.to_dict()}), 201
-        
+        if result.get('success'):
+            return jsonify({
+                'success': True,
+                'message': 'Please check your phone for M-Pesa prompt',
+                'checkout_request_id': result.get('checkout_request_id'),
+                'merchant_request_id': result.get('merchant_request_id')
+            }), 200
+        else:
+            return jsonify({
+                'success': False,
+                'message': result.get('message', 'Payment failed')
+            }), 400
+            
     except Exception as e:
-        db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
 
-@app.route('/api/admin/products/<int:product_id>', methods=['PUT'])
-@jwt_required()
-def update_product(product_id):
-    """Update product (Admin only)"""
+@app.route('/api/mpesa/callback', methods=['POST'])
+def mpesa_callback():
+    """M-Pesa callback endpoint"""
     try:
-        product = Product.query.get(product_id)
-        
-        if not product:
-            return jsonify({'error': 'Product not found'}), 404
-        
         data = request.get_json()
+        print("M-Pesa Callback:", data)
         
-        if 'name' in data:
-            product.name = data['name']
-        if 'category' in data:
-            product.category = data['category']
-        if 'price' in data:
-            product.price = float(data['price'])
-        if 'image_url' in data:
-            product.image_url = data['image_url']
-        if 'stock' in data:
-            product.stock = int(data['stock'])
-        if 'description' in data:
-            product.description = data['description']
+        result_code = data.get('Body', {}).get('stkCallback', {}).get('ResultCode')
         
-        db.session.commit()
+        if result_code == 0:
+            callback_metadata = data.get('Body', {}).get('stkCallback', {}).get('CallbackMetadata', {}).get('Item', [])
+            
+            payment_details = {}
+            for item in callback_metadata:
+                payment_details[item.get('Name')] = item.get('Value')
+            
+            print("Payment Successful:", payment_details)
+        else:
+            print("Payment Failed")
         
-        return jsonify({'message': 'Product updated successfully', 'product': product.to_dict()}), 200
+        return jsonify({'ResultCode': 0, 'ResultDesc': 'Accepted'}), 200
         
     except Exception as e:
-        db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        print(f"Callback error: {e}")
+        return jsonify({'ResultCode': 1, 'ResultDesc': 'Failed'}), 500
 
 
-@app.route('/api/admin/products/<int:product_id>', methods=['DELETE'])
+@app.route('/api/mpesa/query/<checkout_request_id>', methods=['GET'])
 @jwt_required()
-def delete_product(product_id):
-    """Delete product (Admin only)"""
+def query_mpesa_status(checkout_request_id):
+    """Query M-Pesa transaction status"""
     try:
-        product = Product.query.get(product_id)
-        
-        if not product:
-            return jsonify({'error': 'Product not found'}), 404
-        
-        db.session.delete(product)
-        db.session.commit()
-        
-        return jsonify({'message': 'Product deleted successfully'}), 200
-        
+        result = mpesa.query_stk_status(checkout_request_id)
+        return jsonify(result), 200
     except Exception as e:
-        db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
 
