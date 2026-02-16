@@ -27,6 +27,359 @@ migrate = Migrate(app, db)
 jwt = JWTManager(app)
 
 
+# ============================================
+# SEED ENDPOINT - 500+ PRODUCTS
+# ============================================
+
+@app.route('/api/seed-now', methods=['GET'])
+def seed_now():
+    """Seed database with 500+ products"""
+    try:
+        # Check existing
+        existing = Product.query.count()
+        if existing > 400:
+            return jsonify({'message': f'Already have {existing} products'}), 200
+        
+        # Clear ALL products (CASCADE will handle foreign keys)
+        try:
+            Product.query.delete()
+            db.session.commit()
+        except:
+            db.session.rollback()
+        
+        products = []
+        
+        # VEGETABLES (50)
+        veggies = [
+            ('Sukuma Wiki Fresh', 30, 250), ('Spinach Organic', 40, 220),
+            ('Cabbage Whole', 50, 200), ('Tomatoes 1kg', 80, 300),
+            ('Red Onions 1kg', 60, 350), ('Carrots 1kg', 70, 280),
+            ('Potatoes 2kg', 100, 320), ('Green Pepper', 20, 250),
+            ('Cucumber', 25, 230), ('Lettuce', 35, 200),
+            ('Broccoli', 90, 180), ('Cauliflower', 85, 190),
+            ('Dhania Bundle', 20, 280), ('Spring Onions', 25, 260),
+            ('Garlic 250g', 150, 220), ('Ginger 250g', 120, 240),
+            ('Beetroot', 60, 200), ('Sweet Potato 1kg', 80, 250),
+            ('Pumpkin', 100, 180), ('Eggplant', 45, 210),
+            ('Red Pepper', 30, 200), ('Yellow Pepper', 30, 190),
+            ('Zucchini', 50, 170), ('Mushrooms 250g', 180, 150),
+            ('Baby Corn', 120, 180), ('Green Beans 500g', 90, 200),
+            ('Garden Peas 500g', 100, 180), ('Leeks', 60, 160),
+            ('Celery', 70, 150), ('Arrowroots 1kg', 110, 200),
+            ('Cherry Tomatoes', 100, 180), ('Kale', 35, 240),
+            ('Swiss Chard', 40, 200), ('Pak Choi', 45, 180),
+            ('Butternut', 80, 160), ('Radish', 30, 190),
+            ('Turnips', 50, 170), ('Chili Peppers', 40, 220),
+            ('Parsley', 25, 200), ('Mint', 25, 200),
+            ('Coriander', 20, 210), ('Basil', 30, 180),
+            ('Rosemary', 35, 170), ('Thyme', 30, 180),
+            ('Oregano', 35, 170), ('Bell Pepper Mix', 100, 160),
+            ('Okra', 40, 190), ('Asparagus', 150, 120),
+            ('Artichoke', 180, 100), ('Fennel', 90, 140),
+        ]
+        for name, price, stock in veggies:
+            products.append(Product(name=name, category='vegetables', price=price, stock=stock, description=f'Fresh {name}'))
+        
+        # FRUITS (50)
+        fruits = [
+            ('Bananas Dozen', 120, 300), ('Red Apples 1kg', 250, 250),
+            ('Oranges 1kg', 150, 280), ('Mangoes', 50, 350),
+            ('Watermelon', 200, 220), ('Pineapple', 100, 240),
+            ('Papaya', 80, 210), ('Avocado', 30, 300),
+            ('Passion Fruit 6pc', 60, 260), ('Grapes 500g', 180, 200),
+            ('Strawberries 250g', 200, 180), ('Lemons 4pc', 40, 280),
+            ('Tangerines 1kg', 130, 230), ('Plums 500g', 150, 200),
+            ('Pears 1kg', 220, 190), ('Guava', 25, 250),
+            ('Coconut', 80, 210), ('Tree Tomato', 100, 200),
+            ('Sugarcane', 40, 240), ('Custard Apple', 50, 180),
+            ('Green Apples 1kg', 260, 220), ('Dragon Fruit', 120, 140),
+            ('Kiwi 4pc', 200, 160), ('Pomegranate', 150, 150),
+            ('Blueberries 125g', 280, 120), ('Blackberries 125g', 250, 110),
+            ('Cherries 250g', 350, 100), ('Dates 250g', 180, 180),
+            ('Figs Pack', 200, 130), ('Star Fruit', 80, 140),
+            ('Lychee 250g', 180, 120), ('Rambutan 250g', 200, 100),
+            ('Persimmon', 70, 130), ('Mulberries 150g', 180, 90),
+            ('Gooseberries 200g', 150, 100), ('Cantaloupe', 150, 160),
+            ('Honeydew', 160, 150), ('Grapefruit', 60, 180),
+            ('Limes 6pc', 50, 220), ('Nectarines 500g', 180, 140),
+            ('Apricots 500g', 190, 130), ('Peaches 500g', 200, 140),
+            ('Prunes 250g', 160, 150), ('Raisins 250g', 140, 180),
+            ('Cranberries 200g', 200, 120), ('Raspberries 125g', 260, 100),
+            ('Boysenberries', 220, 90), ('Elderberries', 180, 100),
+            ('Currants 200g', 170, 110), ('Quince', 90, 130),
+        ]
+        for name, price, stock in fruits:
+            products.append(Product(name=name, category='fruits', price=price, stock=stock, description=f'Fresh {name}'))
+        
+        # MEAT (40)
+        meat = [
+            ('Beef Steak 500g', 400, 180), ('Beef Stew 1kg', 600, 200),
+            ('Minced Beef 500g', 300, 220), ('Beef Bones 1kg', 200, 210),
+            ('Goat Meat 1kg', 800, 160), ('Mutton 1kg', 750, 150),
+            ('Pork Chops 500g', 350, 170), ('Sausages 500g', 280, 240),
+            ('Bacon 250g', 300, 200), ('Beef Liver 500g', 250, 180),
+            ('Tripe 500g', 180, 190), ('Beef Ribs 1kg', 550, 170),
+            ('Smokies 500g', 250, 250), ('Corned Beef 340g', 280, 220),
+            ('Salami 200g', 320, 180), ('Burger Patties 4pc', 350, 170),
+            ('Lamb Chops 500g', 650, 130), ('T-Bone 500g', 500, 140),
+            ('Beef Fillet 500g', 600, 130), ('Pork Belly 500g', 380, 150),
+            ('Brisket 1kg', 650, 140), ('Lamb Leg 1kg', 900, 100),
+            ('Beef Tongue 500g', 350, 120), ('Oxtail 1kg', 700, 110),
+            ('Pork Ribs 1kg', 550, 140), ('Ham Sliced 200g', 300, 180),
+            ('Pastrami 200g', 350, 150), ('Chorizo 250g', 320, 140),
+            ('Pepperoni 150g', 280, 160), ('Meatballs 500g', 320, 170),
+            ('Beef Mince Premium', 350, 200), ('Lamb Mince 500g', 400, 140),
+            ('Pork Mince 500g', 320, 160), ('Veal Chops 500g', 550, 100),
+            ('Venison 500g', 800, 80), ('Rabbit Meat 500g', 600, 70),
+            ('Beef Suet 500g', 150, 160), ('Pork Fat 500g', 120, 170),
+            ('Beef Shanks 1kg', 450, 150), ('Short Ribs 1kg', 500, 140),
+        ]
+        for name, price, stock in meat:
+            products.append(Product(name=name, category='meat', price=price, stock=stock, description=f'{name}'))
+        
+        # POULTRY (30)
+        poultry = [
+            ('Whole Chicken 1.5kg', 650, 220), ('Chicken Breasts 500g', 350, 250),
+            ('Chicken Thighs 1kg', 450, 240), ('Chicken Wings 1kg', 400, 230),
+            ('Drumsticks 1kg', 420, 235), ('Gizzards 500g', 200, 200),
+            ('Farm Eggs 30', 450, 300), ('Whole Turkey', 1800, 80),
+            ('Duck Whole', 1200, 60), ('Quail Eggs 12pc', 180, 170),
+            ('Chicken Mince 500g', 280, 200), ('Chicken Livers 500g', 180, 180),
+            ('Chicken Sausages', 300, 210), ('Smoked Chicken', 900, 110),
+            ('Turkey Sausages', 380, 150), ('Chicken Nuggets', 320, 190),
+            ('Chicken Strips', 330, 180), ('Turkey Mince 500g', 350, 140),
+            ('Duck Breast 500g', 700, 90), ('Turkey Breast 500g', 450, 120),
+            ('Chicken Stock 1L', 150, 160), ('Cornish Hen', 600, 80),
+            ('Free Range Eggs 12', 280, 200), ('Duck Eggs 6pc', 200, 130),
+            ('Turkey Wings 1kg', 500, 110), ('Chicken Feet 500g', 120, 180),
+            ('Chicken Necks 500g', 100, 190), ('Chicken Hearts 500g', 180, 150),
+            ('Turkey Legs 1kg', 550, 100), ('Quail Meat 500g', 400, 90),
+        ]
+        for name, price, stock in poultry:
+            products.append(Product(name=name, category='poultry', price=price, stock=stock, description=f'{name}'))
+        
+        # FISH (30)
+        fish = [
+            ('Tilapia 1kg', 600, 200), ('Nile Perch 1kg', 700, 180),
+            ('Salmon 500g', 900, 150), ('Tuna Canned 200g', 180, 280),
+            ('Sardines Canned', 120, 300), ('Prawns 500g', 800, 160),
+            ('Octopus 500g', 650, 140), ('Squid 500g', 600, 150),
+            ('Mackerel Canned', 140, 250), ('Omena 500g', 150, 230),
+            ('Catfish 1kg', 550, 150), ('Crab 500g', 700, 120),
+            ('Lobster 500g', 1200, 80), ('Mussels 500g', 400, 130),
+            ('Fish Fingers', 280, 190), ('Smoked Fish 500g', 450, 140),
+            ('Cod Fillet 500g', 750, 110), ('Haddock 500g', 680, 100),
+            ('Sea Bass 1kg', 850, 90), ('Oysters 6pc', 500, 80),
+            ('Clams 500g', 450, 100), ('Anchovies Canned', 160, 180),
+            ('Herring Pickled', 200, 140), ('Trout 500g', 650, 100),
+            ('Swordfish 500g', 950, 70), ('Tuna Steak 500g', 880, 90),
+            ('Barramundi 1kg', 750, 100), ('Kingfish 1kg', 800, 90),
+            ('Snapper 1kg', 720, 110), ('Grouper 1kg', 780, 100),
+        ]
+        for name, price, stock in fish:
+            products.append(Product(name=name, category='fish', price=price, stock=stock, description=f'{name}'))
+        
+        # DAIRY (35)
+        dairy = [
+            ('Fresh Milk 1L', 120, 350), ('Mala 500ml', 60, 300),
+            ('Yogurt 500ml', 100, 280), ('Cheddar 200g', 250, 220),
+            ('Butter 500g', 350, 240), ('Margarine 500g', 180, 300),
+            ('Cream 250ml', 150, 200), ('Buttermilk 500ml', 80, 210),
+            ('Ghee 500ml', 400, 180), ('Milk Powder 1kg', 550, 250),
+            ('Ice Cream 1L', 280, 200), ('Cottage Cheese 250g', 200, 170),
+            ('Sour Cream 200ml', 120, 180), ('Condensed Milk', 180, 250),
+            ('Evaporated Milk', 120, 270), ('Greek Yogurt 500ml', 150, 170),
+            ('Chocolate Milk', 90, 220), ('Mozzarella 200g', 280, 160),
+            ('Parmesan 100g', 350, 130), ('Whipping Cream', 180, 150),
+            ('Cream Cheese 200g', 220, 160), ('Feta 200g', 240, 140),
+            ('Blue Cheese 150g', 300, 100), ('Gouda 200g', 270, 130),
+            ('Brie 150g', 320, 90), ('String Cheese', 180, 170),
+            ('Cheese Slices 200g', 200, 200), ('Kefir 500ml', 110, 150),
+            ('Almond Milk 1L', 180, 140), ('Oat Milk 1L', 170, 130),
+            ('Soy Milk 1L', 160, 150), ('Coconut Milk 400ml', 140, 160),
+            ('Paneer 200g', 200, 140), ('Halloumi 200g', 280, 120),
+            ('Ricotta 250g', 220, 130),
+        ]
+        for name, price, stock in dairy:
+            products.append(Product(name=name, category='dairy', price=price, stock=stock, description=f'{name}'))
+        
+        # BEVERAGES (50)
+        beverages = [
+            ('Coca Cola 500ml', 60, 450), ('Fanta 500ml', 60, 430),
+            ('Sprite 500ml', 60, 420), ('Water 500ml', 30, 600),
+            ('Fruit Juice 1L', 120, 300), ('Mango Juice 500ml', 70, 330),
+            ('Coffee 100g', 180, 250), ('Tea 250g', 120, 300),
+            ('Hot Chocolate 250g', 200, 220), ('Energy Drink 250ml', 150, 250),
+            ('Water 1.5L', 50, 550), ('Apple Juice 1L', 150, 270),
+            ('Orange Juice 1L', 140, 280), ('Pineapple Juice 1L', 130, 260),
+            ('Ginger Tea 20bags', 180, 230), ('Green Tea 20bags', 200, 220),
+            ('Lemonade 500ml', 80, 290), ('Milkshake 500ml', 120, 230),
+            ('Coconut Water', 100, 250), ('Passion Juice 500ml', 90, 260),
+            ('Pepsi 500ml', 60, 400), ('Mountain Dew 500ml', 60, 370),
+            ('Mirinda 500ml', 60, 360), ('Stoney 500ml', 60, 390),
+            ('Alvaro 500ml', 80, 300), ('Soda Water 500ml', 50, 350),
+            ('Iced Coffee 500ml', 120, 220), ('Strawberry Juice 1L', 150, 200),
+            ('Guava Juice 500ml', 90, 240), ('Herbal Tea 20bags', 180, 180),
+            ('Black Tea 20bags', 150, 260), ('Chamomile Tea', 200, 170),
+            ('Peppermint Tea', 190, 180), ('Lemon Tea 20bags', 170, 190),
+            ('Iced Tea 500ml', 70, 280), ('Cranberry Juice 1L', 160, 180),
+            ('Grape Juice 1L', 140, 200), ('Tomato Juice 1L', 130, 170),
+            ('Carrot Juice 500ml', 100, 190), ('Beetroot Juice', 110, 170),
+            ('Espresso 250g', 350, 140), ('Cappuccino Mix', 280, 160),
+            ('Latte Mix 250g', 300, 150), ('Mocha Mix 250g', 320, 140),
+            ('Drinking Chocolate', 220, 190), ('Milo 400g', 280, 200),
+            ('Ovaltine 400g', 270, 190), ('Nesquik 400g', 260, 180),
+            ('Tang 500g', 180, 220), ('Kool-Aid Mix', 120, 210),
+        ]
+        for name, price, stock in beverages:
+            products.append(Product(name=name, category='beverages', price=price, stock=stock, description=f'{name}'))
+        
+        # SNACKS (50)
+        snacks = [
+            ('Crisps 150g', 100, 350), ('Biscuits 300g', 120, 330),
+            ('Peanuts 250g', 80, 300), ('Popcorn 100g', 50, 310),
+            ('Chocolate Bar', 80, 350), ('Sweets 200g', 60, 330),
+            ('Chewing Gum', 40, 370), ('Cake Slice', 100, 220),
+            ('Cookies 200g', 140, 270), ('Crackers 200g', 90, 290),
+            ('Pretzels 150g', 110, 240), ('Mixed Nuts 250g', 200, 230),
+            ('Granola Bars 6pc', 180, 260), ('Fruit Roll', 70, 280),
+            ('Corn Chips 150g', 120, 290), ('Rice Cakes', 100, 240),
+            ('Trail Mix 200g', 180, 220), ('Beef Jerky 50g', 150, 200),
+            ('Cheese Puffs 100g', 90, 300), ('Samosas 4pc', 80, 240),
+            ('Cashews 200g', 280, 190), ('Macadamia 150g', 350, 150),
+            ('Plantain Chips', 90, 250), ('Beef Samosas 4pc', 100, 230),
+            ('Chapati Crisps', 70, 270), ('Honey Peanuts 250g', 100, 240),
+            ('Cheese Balls 150g', 100, 280), ('Coconut Biscuits', 100, 260),
+            ('Dark Chocolate', 120, 220), ('White Chocolate', 120, 210),
+            ('Wafer Biscuits', 110, 250), ('Marshmallows 200g', 90, 230),
+            ('Muffins 4pc', 150, 180), ('Brownies 4pc', 160, 170),
+            ('Donuts 6pc', 180, 200), ('Cupcakes 4pc', 200, 160),
+            ('Protein Bars 6pc', 250, 140), ('Dried Mango 150g', 130, 180),
+            ('Dried Pineapple', 140, 170), ('Energy Balls 6pc', 180, 150),
+            ('Tortilla Chips', 110, 270), ('Salsa Dip 200ml', 120, 180),
+            ('Guacamole 200g', 150, 160), ('Hummus 200g', 140, 180),
+            ('Pita Chips 150g', 100, 200), ('Veggie Chips 150g', 130, 190),
+            ('Seaweed Snack', 80, 210), ('Rice Crackers', 90, 220),
+            ('Wasabi Peas 150g', 120, 170), ('Banana Chips 150g', 80, 240),
+        ]
+        for name, price, stock in snacks:
+            products.append(Product(name=name, category='snacks', price=price, stock=stock, description=f'{name}'))
+        
+        # BAKERY (25)
+        bakery = [
+            ('White Bread 400g', 50, 350), ('Brown Bread 400g', 60, 330),
+            ('Chapati 5pc', 100, 300), ('Mandazi 6pc', 60, 310),
+            ('Doughnuts 6pc', 120, 240), ('Croissants 4pc', 150, 220),
+            ('Buns 6pc', 80, 290), ('Pizza Base', 100, 230),
+            ('Pita Bread 6pc', 90, 240), ('French Loaf', 70, 270),
+            ('Bagels 4pc', 120, 190), ('English Muffins', 100, 200),
+            ('Cinnamon Rolls 4pc', 150, 170), ('Garlic Bread', 80, 220),
+            ('Brioche 4pc', 140, 180), ('Sourdough Loaf', 120, 160),
+            ('Rye Bread', 90, 170), ('Multigrain Bread', 80, 200),
+            ('Dinner Rolls 8pc', 100, 210), ('Pretzel Buns 4pc', 130, 150),
+            ('Naan Bread 4pc', 100, 180), ('Focaccia', 110, 170),
+            ('Ciabatta', 100, 180), ('Baguette', 80, 190),
+            ('Challah Bread', 140, 140),
+        ]
+        for name, price, stock in bakery:
+            products.append(Product(name=name, category='bakery', price=price, stock=stock, description=f'{name}'))
+        
+        # FLOUR & GRAINS (35)
+        grains_flour = [
+            ('Maize Flour 2kg', 180, 400), ('Wheat Flour 2kg', 200, 370),
+            ('Pishori Rice 2kg', 250, 350), ('Spaghetti 500g', 120, 330),
+            ('Oats 500g', 150, 290), ('Atta Flour 2kg', 220, 300),
+            ('Self-Raising 1kg', 140, 310), ('Noodles', 40, 500),
+            ('Corn Flour 1kg', 120, 330), ('Millet Flour 1kg', 150, 240),
+            ('Sorghum Flour 1kg', 140, 230), ('Rice Flour 500g', 100, 270),
+            ('Barley 500g', 130, 220), ('Couscous 500g', 180, 200),
+            ('Quinoa 500g', 350, 180), ('Basmati Rice 2kg', 350, 240),
+            ('Brown Rice 2kg', 280, 220), ('Macaroni 500g', 130, 300),
+            ('Penne 500g', 140, 290), ('Vermicelli 500g', 110, 270),
+            ('Fusilli 500g', 135, 260), ('Lasagna Sheets', 160, 200),
+            ('Egg Noodles 500g', 150, 240), ('Wild Rice 500g', 320, 150),
+            ('Jasmine Rice 2kg', 300, 210), ('Arborio Rice 1kg', 280, 170),
+            ('Buckwheat 500g', 200, 180), ('Cornmeal 1kg', 140, 250),
+            ('Semolina 1kg', 160, 230), ('Bread Flour 1kg', 150, 260),
+            ('Cake Flour 1kg', 160, 240), ('Pastry Flour 1kg', 170, 220),
+            ('Rye Flour 1kg', 180, 200), ('Almond Flour 500g', 350, 140),
+            ('Coconut Flour 500g', 300, 150),
+        ]
+        for name, price, stock in grains_flour:
+            cat = 'flour' if 'Flour' in name else 'grains'
+            products.append(Product(name=name, category=cat, price=price, stock=stock, description=f'{name}'))
+        
+        # SPICES (35)
+        spices_list = [
+            ('Salt 500g', 40, 500), ('Black Pepper 50g', 80, 300),
+            ('Curry Powder 50g', 100, 290), ('Turmeric 50g', 90, 280),
+            ('Cumin 50g', 110, 270), ('Cinnamon 50g', 100, 260),
+            ('Paprika 50g', 120, 250), ('Chili Powder 50g', 80, 290),
+            ('Mixed Herbs 30g', 100, 230), ('Cardamom 30g', 150, 220),
+            ('Cloves 30g', 120, 230), ('Nutmeg 30g', 130, 210),
+            ('Bay Leaves 20g', 80, 240), ('Thyme 20g', 90, 220),
+            ('Oregano 20g', 90, 220), ('Garam Masala 50g', 120, 200),
+            ('Chili Flakes 50g', 100, 230), ('Garlic Powder 50g', 100, 240),
+            ('Onion Powder 50g', 100, 240), ('Mixed Spice 50g', 110, 220),
+            ('Coriander 50g', 90, 230), ('Fennel 50g', 100, 210),
+            ('Star Anise 30g', 140, 180), ('Rosemary 20g', 100, 200),
+            ('Basil 20g', 90, 210), ('Sage 20g', 100, 190),
+            ('Dill 20g', 90, 200), ('Parsley Dried 20g', 80, 210),
+            ('Celery Salt 100g', 100, 200), ('Mustard Seeds 50g', 90, 210),
+            ('Ginger Powder 50g', 100, 220), ('Cayenne Pepper 50g', 110, 200),
+            ('White Pepper 50g', 90, 210), ('Saffron 1g', 500, 100),
+            ('Vanilla Extract 50ml', 280, 150),
+        ]
+        for name, price, stock in spices_list:
+            products.append(Product(name=name, category='spices', price=price, stock=stock, description=f'{name}'))
+        
+        # COOKING OIL (20)
+        oils = [
+            ('Vegetable Oil 2L', 450, 350), ('Olive Oil 500ml', 650, 220),
+            ('Sunflower Oil 1L', 280, 300), ('Coconut Oil 500ml', 400, 230),
+            ('Palm Oil 1L', 300, 240), ('Sesame Oil 250ml', 350, 190),
+            ('Canola Oil 1L', 320, 270), ('Avocado Oil 250ml', 550, 180),
+            ('Vegetable Oil 1L', 240, 330), ('Groundnut Oil 1L', 300, 230),
+            ('Corn Oil 1L', 280, 240), ('Blended Oil 2L', 400, 290),
+            ('Grapeseed Oil 500ml', 380, 160), ('Walnut Oil 250ml', 420, 140),
+            ('Flaxseed Oil 250ml', 400, 150), ('Peanut Oil 1L', 310, 220),
+            ('Rice Bran Oil 1L', 330, 200), ('Soybean Oil 1L', 270, 240),
+            ('Mustard Oil 500ml', 280, 190), ('Safflower Oil 500ml', 350, 170),
+        ]
+        for name, price, stock in oils:
+            products.append(Product(name=name, category='cooking_oil', price=price, stock=stock, description=f'{name}'))
+        
+        # HOUSEHOLD (30)
+        household_items = [
+            ('Toilet Paper 4', 150, 350), ('Soap Bars 3pc', 120, 400),
+            ('Detergent 1kg', 180, 330), ('Dish Soap 500ml', 100, 350),
+            ('Bleach 1L', 120, 300), ('Air Freshener', 200, 240),
+            ('Matches Box', 20, 600), ('Candles 5pc', 100, 330),
+            ('Garbage Bags 20pc', 120, 300), ('Sponges 3pc', 80, 350),
+            ('Broom', 200, 240), ('Mop', 250, 220),
+            ('Hangers 10pc', 150, 270), ('Floor Wipes 50pc', 180, 230),
+            ('Laundry Basket', 300, 180), ('Bucket 20L', 250, 220),
+            ('Disinfectant 1L', 180, 260), ('Hand Soap 500ml', 120, 310),
+            ('Glass Cleaner', 140, 240), ('Floor Cleaner 1L', 160, 250),
+            ('Toilet Cleaner', 150, 260), ('Fabric Softener 1L', 180, 230),
+            ('Dish Cloths 3pc', 90, 280), ('Trash Can', 350, 160),
+            ('Dust Pan & Brush', 180, 200), ('Mop Bucket', 280, 180),
+            ('Rubber Gloves', 100, 250), ('Scrub Brush', 120, 230),
+            ('Duster', 90, 260), ('Vacuum Bags 5pc', 200, 180),
+        ]
+        for name, price, stock in household_items:
+            products.append(Product(name=name, category='household', price=price, stock=stock, description=f'{name}'))
+        
+        # Save all
+        db.session.bulk_save_objects(products)
+        db.session.commit()
+        
+        return jsonify({'success': True, 'total': len(products)}), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        import traceback
+        return jsonify({'error': str(e), 'trace': traceback.format_exc()}), 500
 
 
 # ============================================
@@ -43,37 +396,26 @@ def register():
         password = data.get('password')
         phone = data.get('phone')
         
-        # Validation
         if not all([name, email, password]):
             return jsonify({'error': 'Name, email and password are required'}), 400
         
-        # Check if admin name
         if name in Config.ALLOWED_ADMIN_NAMES:
             return jsonify({'error': 'This name is reserved'}), 400
         
-        # Check if email exists
         if User.query.filter_by(email=email).first():
             return jsonify({'error': 'Email already registered'}), 400
         
-        # Create new user
-        user = User(
-            name=name,
-            email=email,
-            phone=phone,
-            role='customer'
-        )
+        user = User(name=name, email=email, phone=phone, role='customer')
         user.set_password(password)
         
         db.session.add(user)
         db.session.commit()
         
-        # Send welcome email (non-blocking)
         try:
             send_welcome_email(email, name)
         except Exception as email_error:
             print(f"Email sending failed: {email_error}")
         
-        # Create access token
         access_token = create_access_token(identity=str(user.id))
         
         return jsonify({
@@ -84,97 +426,40 @@ def register():
         
     except Exception as e:
         db.session.rollback()
-        import traceback
-        error_details = traceback.format_exc()
-        print(f"Registration Error: {error_details}")
-        return jsonify({'error': str(e), 'details': error_details}), 500
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/login', methods=['POST'])
 def login():
     """Login for customers, drivers, and admins"""
     try:
         data = request.get_json()
-        identifier = data.get('identifier')  # Can be email, name, or driver_identity
+        identifier = data.get('identifier')
         password = data.get('password')
         
         if not all([identifier, password]):
             return jsonify({'error': 'Identifier and password are required'}), 400
         
-        # Check if admin login
         if identifier in Config.ALLOWED_ADMIN_NAMES and password == Config.ADMIN_PASSWORD:
-            # Create temporary admin user
-            admin_user = {
-                'id': 0,
-                'name': identifier,
-                'email': 'admin@noory.com',
-                'role': 'admin'
-            }
-            access_token = create_access_token(
-                identity="0",
-                additional_claims={'role': 'admin', 'name': identifier}
-            )
-            return jsonify({
-                'message': 'Admin login successful',
-                'token': access_token,
-                'user': admin_user
-            }), 200
+            admin_user = {'id': 0, 'name': identifier, 'email': 'admin@noory.com', 'role': 'admin'}
+            access_token = create_access_token(identity="0", additional_claims={'role': 'admin', 'name': identifier})
+            return jsonify({'message': 'Admin login successful', 'token': access_token, 'user': admin_user}), 200
         
-        # Check if driver login (format: Driver-1)
         if identifier.startswith('Driver-'):
             driver = Driver.query.filter_by(driver_identity=identifier).first()
             if driver and driver.secret_key == password and driver.approved:
-                access_token = create_access_token(
-                    identity=str(driver.user_id),
-                    additional_claims={'role': 'driver', 'driver_id': driver.id}
-                )
-                return jsonify({
-                    'message': 'Driver login successful',
-                    'token': access_token,
-                    'user': driver.user.to_dict(),
-                    'driver': driver.to_dict()
-                }), 200
+                access_token = create_access_token(identity=str(driver.user_id), additional_claims={'role': 'driver', 'driver_id': driver.id})
+                return jsonify({'message': 'Driver login successful', 'token': access_token, 'user': driver.user.to_dict(), 'driver': driver.to_dict()}), 200
             else:
                 return jsonify({'error': 'Invalid driver credentials'}), 401
         
-        # Regular user login (email)
         user = User.query.filter_by(email=identifier).first()
         
         if not user or not user.check_password(password):
             return jsonify({'error': 'Invalid credentials'}), 401
         
-        access_token = create_access_token(
-            identity=str(user.id),
-            additional_claims={'role': user.role}
-        )
+        access_token = create_access_token(identity=str(user.id), additional_claims={'role': user.role})
         
-        response_data = {
-            'message': 'Login successful',
-            'token': access_token,
-            'user': user.to_dict()
-        }
-        
-        # If user is a driver, include driver info
-        if user.role == 'driver' and user.driver_profile:
-            response_data['driver'] = user.driver_profile.to_dict()
-        
-        return jsonify(response_data), 200
-        
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/profile', methods=['GET'])
-@jwt_required()
-def get_profile():
-    """Get current user profile"""
-    try:
-        user_id = get_jwt_identity()
-        user = User.query.get(int(user_id))
-        
-        if not user:
-            return jsonify({'error': 'User not found'}), 404
-        
-        response_data = {'user': user.to_dict()}
+        response_data = {'message': 'Login successful', 'token': access_token, 'user': user.to_dict()}
         
         if user.role == 'driver' and user.driver_profile:
             response_data['driver'] = user.driver_profile.to_dict()
@@ -182,42 +467,6 @@ def get_profile():
         return jsonify(response_data), 200
         
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/profile', methods=['PUT'])
-@jwt_required()
-def update_profile():
-    """Update user profile"""
-    try:
-        user_id = get_jwt_identity()
-        user = User.query.get(int(user_id))
-        
-        if not user:
-            return jsonify({'error': 'User not found'}), 404
-        
-        data = request.get_json()
-        
-        if 'name' in data:
-            user.name = data['name']
-        if 'phone' in data:
-            user.phone = data['phone']
-        if 'email' in data:
-            # Check if email already exists
-            existing = User.query.filter_by(email=data['email']).first()
-            if existing and existing.id != user.id:
-                return jsonify({'error': 'Email already in use'}), 400
-            user.email = data['email']
-        
-        db.session.commit()
-        
-        return jsonify({
-            'message': 'Profile updated successfully',
-            'user': user.to_dict()
-        }), 200
-        
-    except Exception as e:
-        db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
 
@@ -236,9 +485,7 @@ def get_products():
         else:
             products = Product.query.all()
         
-        return jsonify({
-            'products': [product.to_dict() for product in products]
-        }), 200
+        return jsonify({'products': [product.to_dict() for product in products]}), 200
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -256,92 +503,6 @@ def get_product(product_id):
         return jsonify({'product': product.to_dict()}), 200
         
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/admin/products', methods=['POST'])
-@jwt_required()
-def create_product():
-    """Create new product (Admin only)"""
-    try:
-        data = request.get_json()
-        
-        product = Product(
-            name=data['name'],
-            category=data['category'],
-            price=float(data['price']),
-            image_url=data.get('image_url'),
-            stock=int(data.get('stock', 0)),
-            description=data.get('description')
-        )
-        
-        db.session.add(product)
-        db.session.commit()
-        
-        return jsonify({
-            'message': 'Product created successfully',
-            'product': product.to_dict()
-        }), 201
-        
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/admin/products/<int:product_id>', methods=['PUT'])
-@jwt_required()
-def update_product(product_id):
-    """Update product (Admin only)"""
-    try:
-        product = Product.query.get(product_id)
-        
-        if not product:
-            return jsonify({'error': 'Product not found'}), 404
-        
-        data = request.get_json()
-        
-        if 'name' in data:
-            product.name = data['name']
-        if 'category' in data:
-            product.category = data['category']
-        if 'price' in data:
-            product.price = float(data['price'])
-        if 'image_url' in data:
-            product.image_url = data['image_url']
-        if 'stock' in data:
-            product.stock = int(data['stock'])
-        if 'description' in data:
-            product.description = data['description']
-        
-        db.session.commit()
-        
-        return jsonify({
-            'message': 'Product updated successfully',
-            'product': product.to_dict()
-        }), 200
-        
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/admin/products/<int:product_id>', methods=['DELETE'])
-@jwt_required()
-def delete_product(product_id):
-    """Delete product (Admin only)"""
-    try:
-        product = Product.query.get(product_id)
-        
-        if not product:
-            return jsonify({'error': 'Product not found'}), 404
-        
-        db.session.delete(product)
-        db.session.commit()
-        
-        return jsonify({'message': 'Product deleted successfully'}), 200
-        
-    except Exception as e:
-        db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
 
@@ -379,98 +540,21 @@ def add_to_cart():
         product_id = data.get('product_id')
         quantity = data.get('quantity', 1)
         
-        # Check if product exists
         product = Product.query.get(product_id)
         if not product:
             return jsonify({'error': 'Product not found'}), 404
         
-        # Check if item already in cart
-        cart_item = CartItem.query.filter_by(
-            user_id=int(user_id),
-            product_id=product_id
-        ).first()
+        cart_item = CartItem.query.filter_by(user_id=int(user_id), product_id=product_id).first()
         
         if cart_item:
             cart_item.quantity += quantity
         else:
-            cart_item = CartItem(
-                user_id=int(user_id),
-                product_id=product_id,
-                quantity=quantity
-            )
+            cart_item = CartItem(user_id=int(user_id), product_id=product_id, quantity=quantity)
             db.session.add(cart_item)
         
         db.session.commit()
         
-        return jsonify({
-            'message': 'Item added to cart',
-            'cart_item': cart_item.to_dict()
-        }), 200
-        
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/cart/<int:cart_item_id>', methods=['PUT'])
-@jwt_required()
-def update_cart_item(cart_item_id):
-    """Update cart item quantity"""
-    try:
-        user_id = get_jwt_identity()
-        cart_item = CartItem.query.filter_by(id=cart_item_id, user_id=int(user_id)).first()
-        
-        if not cart_item:
-            return jsonify({'error': 'Cart item not found'}), 404
-        
-        data = request.get_json()
-        quantity = data.get('quantity')
-        
-        if quantity <= 0:
-            db.session.delete(cart_item)
-        else:
-            cart_item.quantity = quantity
-        
-        db.session.commit()
-        
-        return jsonify({'message': 'Cart updated'}), 200
-        
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/cart/<int:cart_item_id>', methods=['DELETE'])
-@jwt_required()
-def remove_from_cart(cart_item_id):
-    """Remove item from cart"""
-    try:
-        user_id = get_jwt_identity()
-        cart_item = CartItem.query.filter_by(id=cart_item_id, user_id=int(user_id)).first()
-        
-        if not cart_item:
-            return jsonify({'error': 'Cart item not found'}), 404
-        
-        db.session.delete(cart_item)
-        db.session.commit()
-        
-        return jsonify({'message': 'Item removed from cart'}), 200
-        
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/cart/clear', methods=['DELETE'])
-@jwt_required()
-def clear_cart():
-    """Clear all items from cart"""
-    try:
-        user_id = get_jwt_identity()
-        CartItem.query.filter_by(user_id=int(user_id)).delete()
-        db.session.commit()
-        
-        return jsonify({'message': 'Cart cleared'}), 200
+        return jsonify({'message': 'Item added to cart', 'cart_item': cart_item.to_dict()}), 200
         
     except Exception as e:
         db.session.rollback()
@@ -489,30 +573,7 @@ def get_orders():
         user_id = get_jwt_identity()
         orders = Order.query.filter_by(user_id=int(user_id)).order_by(Order.created_at.desc()).all()
         
-        return jsonify({
-            'orders': [order.to_dict() for order in orders]
-        }), 200
-        
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/orders/<int:order_id>', methods=['GET'])
-@jwt_required()
-def get_order(order_id):
-    """Get single order"""
-    try:
-        user_id = get_jwt_identity()
-        order = Order.query.get(order_id)
-        
-        if not order:
-            return jsonify({'error': 'Order not found'}), 404
-        
-        # Check if user owns this order
-        if order.user_id != int(user_id):
-            return jsonify({'error': 'Unauthorized'}), 403
-        
-        return jsonify({'order': order.to_dict()}), 200
+        return jsonify({'orders': [order.to_dict() for order in orders]}), 200
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -526,18 +587,15 @@ def create_order():
         user_id = get_jwt_identity()
         data = request.get_json()
         
-        # Get cart items
         cart_items = CartItem.query.filter_by(user_id=int(user_id)).all()
         
         if not cart_items:
             return jsonify({'error': 'Cart is empty'}), 400
         
-        # Calculate totals
         total_products = sum(item.product.price * item.quantity for item in cart_items)
         delivery_fee = min(float(data.get('delivery_fee', 200)), Config.MAX_DELIVERY_FEE)
         total_price = total_products + delivery_fee
         
-        # Create order
         order = Order(
             user_id=int(user_id),
             total_products_price=total_products,
@@ -545,257 +603,28 @@ def create_order():
             total_price=total_price,
             delivery_location=data.get('delivery_location'),
             payment_method=data.get('payment_method'),
-            payment_status='completed',  # Assuming payment is verified
+            payment_status='completed',
             transaction_id=data.get('transaction_id', f'TXN-{secrets.token_hex(8).upper()}')
         )
         
         db.session.add(order)
         db.session.flush()
         
-        # Create order items
         for cart_item in cart_items:
-            order_item = OrderItem(
-                order_id=order.id,
-                product_id=cart_item.product_id,
-                quantity=cart_item.quantity,
-                price=cart_item.product.price
-            )
+            order_item = OrderItem(order_id=order.id, product_id=cart_item.product_id, quantity=cart_item.quantity, price=cart_item.product.price)
             db.session.add(order_item)
         
-        # Clear cart
         CartItem.query.filter_by(user_id=int(user_id)).delete()
         
         db.session.commit()
         
-        # Send confirmation email (non-blocking)
         try:
             user = User.query.get(int(user_id))
             send_order_confirmation(user.email, user.name, order.id, total_price)
         except Exception as email_error:
             print(f"Email sending failed: {email_error}")
         
-        return jsonify({
-            'message': 'Order created successfully',
-            'order': order.to_dict()
-        }), 201
-        
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/orders/<int:order_id>/status', methods=['PUT'])
-@jwt_required()
-def update_order_status(order_id):
-    """Update order status (delivered)"""
-    try:
-        order = Order.query.get(order_id)
-        
-        if not order:
-            return jsonify({'error': 'Order not found'}), 404
-        
-        data = request.get_json()
-        status = data.get('status')
-        
-        if status == 'delivered':
-            order.status = 'delivered'
-            order.delivered_at = datetime.utcnow()
-            
-            # Update driver earnings if assigned
-            if order.driver_id:
-                driver = Driver.query.get(order.driver_id)
-                if driver:
-                    driver.total_earnings += order.delivery_fee
-        
-        db.session.commit()
-        
-        return jsonify({
-            'message': 'Order status updated',
-            'order': order.to_dict()
-        }), 200
-        
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'error': str(e)}), 500
-
-
-# ============================================
-# DRIVER ROUTES
-# ============================================
-
-@app.route('/api/driver/applications', methods=['POST'])
-def submit_driver_application():
-    """Submit driver application"""
-    try:
-        data = request.get_json()
-        
-        # Check if already applied
-        existing = DriverApplication.query.filter_by(email=data['email']).first()
-        if existing:
-            return jsonify({'error': 'Application already submitted'}), 400
-        
-        application = DriverApplication(
-            name=data['name'],
-            email=data['email'],
-            phone=data['phone'],
-            id_number=data['id_number'],
-            vehicle_type=data['vehicle_type'],
-            vehicle_registration=data.get('vehicle_registration'),
-            about=data.get('about')
-        )
-        
-        db.session.add(application)
-        db.session.commit()
-        
-        return jsonify({
-            'message': 'Application submitted successfully',
-            'application': application.to_dict()
-        }), 201
-        
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/driver/available-orders', methods=['GET'])
-@jwt_required()
-def get_available_orders():
-    """Get available orders for drivers"""
-    try:
-        orders = Order.query.filter_by(status='pending').order_by(Order.created_at.desc()).all()
-        
-        return jsonify({
-            'orders': [order.to_dict() for order in orders]
-        }), 200
-        
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/driver/orders/<int:order_id>/accept', methods=['POST'])
-@jwt_required()
-def accept_order(order_id):
-    """Driver accepts an order"""
-    try:
-        # Get driver info from JWT
-        claims = get_jwt_identity()
-        driver_id = request.get_json().get('driver_id')
-        
-        order = Order.query.get(order_id)
-        
-        if not order:
-            return jsonify({'error': 'Order not found'}), 404
-        
-        if order.status != 'pending':
-            return jsonify({'error': 'Order already assigned'}), 400
-        
-        # Assign order to driver
-        order.driver_id = driver_id
-        order.status = 'assigned'
-        
-        db.session.commit()
-        
-        return jsonify({
-            'message': 'Order accepted',
-            'order': order.to_dict()
-        }), 200
-        
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/driver/orders', methods=['GET'])
-@jwt_required()
-def get_driver_orders():
-    """Get driver's orders"""
-    try:
-        driver_id = request.args.get('driver_id')
-        
-        if not driver_id:
-            return jsonify({'error': 'Driver ID required'}), 400
-        
-        orders = Order.query.filter_by(driver_id=driver_id).order_by(Order.created_at.desc()).all()
-        
-        active_orders = [o.to_dict() for o in orders if o.status != 'delivered']
-        delivered_orders = [o.to_dict() for o in orders if o.status == 'delivered']
-        
-        driver = Driver.query.get(driver_id)
-        
-        return jsonify({
-            'active_orders': active_orders,
-            'delivered_orders': delivered_orders,
-            'total_earnings': driver.total_earnings if driver else 0,
-            'total_deliveries': len(delivered_orders)
-        }), 200
-        
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/driver/feedback', methods=['POST'])
-@jwt_required()
-def submit_driver_feedback():
-    """Driver submits feedback/complaint"""
-    try:
-        data = request.get_json()
-        driver_id = data.get('driver_id')
-        
-        feedback = DriverFeedback(
-            driver_id=driver_id,
-            subject=data.get('subject'),
-            message=data['message']
-        )
-        
-        db.session.add(feedback)
-        db.session.commit()
-        
-        return jsonify({
-            'message': 'Feedback submitted',
-            'feedback': feedback.to_dict()
-        }), 201
-        
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'error': str(e)}), 500
-
-
-# ============================================
-# CUSTOMER FEEDBACK ROUTES
-# ============================================
-
-@app.route('/api/feedback', methods=['POST'])
-def submit_customer_feedback():
-    """Submit customer feedback/complaint (can be anonymous)"""
-    try:
-        data = request.get_json()
-        
-        # Check if user is logged in
-        user_id = None
-        try:
-            from flask_jwt_extended import verify_jwt_in_request
-            verify_jwt_in_request(optional=True)
-            user_id = get_jwt_identity()
-            if user_id:
-                user_id = int(user_id)
-        except:
-            pass
-        
-        feedback = CustomerFeedback(
-            user_id=user_id,
-            name=data.get('name'),
-            email=data.get('email'),
-            subject=data.get('subject'),
-            message=data['message']
-        )
-        
-        db.session.add(feedback)
-        db.session.commit()
-        
-        return jsonify({
-            'message': 'Feedback submitted successfully',
-            'feedback': feedback.to_dict()
-        }), 201
+        return jsonify({'message': 'Order created successfully', 'order': order.to_dict()}), 201
         
     except Exception as e:
         db.session.rollback()
@@ -811,17 +640,14 @@ def submit_customer_feedback():
 def admin_dashboard():
     """Get admin dashboard data"""
     try:
-        # Get statistics
         total_orders = Order.query.count()
         total_customers = User.query.filter_by(role='customer').count()
         total_drivers = Driver.query.filter_by(approved=True).count()
         
-        # Calculate revenue
         completed_orders = Order.query.filter_by(payment_status='completed').all()
         total_revenue = sum(order.total_price for order in completed_orders)
         total_profit = sum(order.total_price - order.delivery_fee for order in completed_orders)
         
-        # Recent orders
         recent_orders = Order.query.order_by(Order.created_at.desc()).limit(10).all()
         
         return jsonify({
@@ -839,216 +665,80 @@ def admin_dashboard():
         return jsonify({'error': str(e)}), 500
 
 
-@app.route('/api/admin/orders', methods=['GET'])
+@app.route('/api/admin/products', methods=['POST'])
 @jwt_required()
-def admin_get_all_orders():
-    """Get all orders (Admin)"""
+def create_product():
+    """Create new product (Admin only)"""
     try:
-        status = request.args.get('status')
+        data = request.get_json()
         
-        if status:
-            orders = Order.query.filter_by(status=status).order_by(Order.created_at.desc()).all()
-        else:
-            orders = Order.query.order_by(Order.created_at.desc()).all()
-        
-        return jsonify({
-            'orders': [order.to_dict() for order in orders]
-        }), 200
-        
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/admin/driver-applications', methods=['GET'])
-@jwt_required()
-def get_driver_applications():
-    """Get all driver applications (Admin)"""
-    try:
-        status = request.args.get('status', 'pending')
-        applications = DriverApplication.query.filter_by(status=status).order_by(DriverApplication.created_at.desc()).all()
-        
-        return jsonify({
-            'applications': [app.to_dict() for app in applications]
-        }), 200
-        
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/admin/driver-applications/<int:app_id>/approve', methods=['POST'])
-@jwt_required()
-def approve_driver_application(app_id):
-    """Approve driver application (Admin)"""
-    try:
-        application = DriverApplication.query.get(app_id)
-        
-        if not application:
-            return jsonify({'error': 'Application not found'}), 404
-        
-        if application.status != 'pending':
-            return jsonify({'error': 'Application already processed'}), 400
-        
-        # Create user account for driver
-        user = User(
-            name=application.name,
-            email=application.email,
-            phone=application.phone,
-            role='driver'
-        )
-        # Set a temporary password (they'll use driver identity + secret key)
-        user.set_password(secrets.token_urlsafe(16))
-        
-        db.session.add(user)
-        db.session.flush()
-        
-        # Generate driver identity
-        driver_count = Driver.query.count() + 1
-        driver_identity = f"Driver-{driver_count}"
-        secret_key = secrets.token_hex(4).upper()  # 8 character secret key
-        
-        # Create driver profile
-        driver = Driver(
-            user_id=user.id,
-            driver_identity=driver_identity,
-            vehicle_type=application.vehicle_type,
-            vehicle_registration=application.vehicle_registration,
-            secret_key=secret_key,
-            approved=True
+        product = Product(
+            name=data['name'],
+            category=data['category'],
+            price=float(data['price']),
+            image_url=data.get('image_url'),
+            stock=int(data.get('stock', 0)),
+            description=data.get('description')
         )
         
-        db.session.add(driver)
-        
-        # Update application status
-        application.status = 'approved'
-        
+        db.session.add(product)
         db.session.commit()
         
-        # Send approval email
-        send_driver_approved_email(
-            application.email,
-            application.name,
-            driver_identity,
-            secret_key
-        )
-        
-        return jsonify({
-            'message': 'Driver approved successfully',
-            'driver': driver.to_dict()
-        }), 200
+        return jsonify({'message': 'Product created successfully', 'product': product.to_dict()}), 201
         
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
 
-@app.route('/api/admin/driver-applications/<int:app_id>/reject', methods=['POST'])
+@app.route('/api/admin/products/<int:product_id>', methods=['PUT'])
 @jwt_required()
-def reject_driver_application(app_id):
-    """Reject driver application (Admin)"""
+def update_product(product_id):
+    """Update product (Admin only)"""
     try:
-        application = DriverApplication.query.get(app_id)
+        product = Product.query.get(product_id)
         
-        if not application:
-            return jsonify({'error': 'Application not found'}), 404
+        if not product:
+            return jsonify({'error': 'Product not found'}), 404
         
-        application.status = 'rejected'
+        data = request.get_json()
+        
+        if 'name' in data:
+            product.name = data['name']
+        if 'category' in data:
+            product.category = data['category']
+        if 'price' in data:
+            product.price = float(data['price'])
+        if 'image_url' in data:
+            product.image_url = data['image_url']
+        if 'stock' in data:
+            product.stock = int(data['stock'])
+        if 'description' in data:
+            product.description = data['description']
+        
         db.session.commit()
         
-        return jsonify({'message': 'Application rejected'}), 200
+        return jsonify({'message': 'Product updated successfully', 'product': product.to_dict()}), 200
         
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
 
-@app.route('/api/admin/drivers', methods=['GET'])
+@app.route('/api/admin/products/<int:product_id>', methods=['DELETE'])
 @jwt_required()
-def get_all_drivers():
-    """Get all drivers (Admin)"""
+def delete_product(product_id):
+    """Delete product (Admin only)"""
     try:
-        drivers = Driver.query.filter_by(approved=True).all()
+        product = Product.query.get(product_id)
         
-        return jsonify({
-            'drivers': [driver.to_dict() for driver in drivers]
-        }), 200
+        if not product:
+            return jsonify({'error': 'Product not found'}), 404
         
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/admin/drivers/<int:driver_id>', methods=['DELETE'])
-@jwt_required()
-def delete_driver(driver_id):
-    """Delete/Remove driver (Admin)"""
-    try:
-        driver = Driver.query.get(driver_id)
-        
-        if not driver:
-            return jsonify({'error': 'Driver not found'}), 404
-        
-        # Delete user account too
-        user = User.query.get(driver.user_id)
-        
-        db.session.delete(driver)
-        if user:
-            db.session.delete(user)
-        
+        db.session.delete(product)
         db.session.commit()
         
-        return jsonify({'message': 'Driver removed successfully'}), 200
-        
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/admin/customer-feedback', methods=['GET'])
-@jwt_required()
-def get_customer_feedback():
-    """Get all customer feedback (Admin)"""
-    try:
-        feedback = CustomerFeedback.query.order_by(CustomerFeedback.created_at.desc()).all()
-        
-        return jsonify({
-            'feedback': [f.to_dict() for f in feedback]
-        }), 200
-        
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/admin/driver-feedback', methods=['GET'])
-@jwt_required()
-def get_driver_feedback():
-    """Get all driver feedback (Admin)"""
-    try:
-        feedback = DriverFeedback.query.order_by(DriverFeedback.created_at.desc()).all()
-        
-        return jsonify({
-            'feedback': [f.to_dict() for f in feedback]
-        }), 200
-        
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/admin/feedback/<int:feedback_id>', methods=['DELETE'])
-@jwt_required()
-def delete_feedback(feedback_id):
-    """Delete feedback (Admin)"""
-    try:
-        # Try customer feedback first
-        feedback = CustomerFeedback.query.get(feedback_id)
-        if not feedback:
-            feedback = DriverFeedback.query.get(feedback_id)
-        
-        if not feedback:
-            return jsonify({'error': 'Feedback not found'}), 404
-        
-        db.session.delete(feedback)
-        db.session.commit()
-        
-        return jsonify({'message': 'Feedback deleted'}), 200
+        return jsonify({'message': 'Product deleted successfully'}), 200
         
     except Exception as e:
         db.session.rollback()
@@ -1062,11 +752,7 @@ def delete_feedback(feedback_id):
 @app.route('/', methods=['GET'])
 def home():
     """Home route"""
-    return jsonify({
-        'message': 'Noory Shop API',
-        'version': '1.0.0',
-        'status': 'running'
-    }), 200
+    return jsonify({'message': 'Noory Shop API', 'version': '1.0.0', 'status': 'running'}), 200
 
 
 @app.route('/health', methods=['GET'])
@@ -1075,87 +761,5 @@ def health():
     return jsonify({'status': 'healthy'}), 200
 
 
-# ============================================
-# ERROR HANDLERS
-# ============================================
-
-@app.errorhandler(404)
-def not_found(error):
-    return jsonify({'error': 'Not found'}), 404
-
-
-@app.errorhandler(500)
-def internal_error(error):
-    db.session.rollback()
-    return jsonify({'error': 'Internal server error'}), 500
-
-
-# ============================================
-# RUN APP
-# ============================================
-@app.route('/api/seed-now', methods=['GET'])
-def seed_now():
-    """Public seed endpoint - GET request"""
-    try:
-        # DON'T delete - just add new products
-        # Check how many products exist
-        existing_count = Product.query.count()
-        
-        if existing_count > 100:
-            return jsonify({'message': f'Already have {existing_count} products. Skipping seed.'}), 200
-        
-        # Add products
-        products = []
-        
-        # Vegetables (50)
-        veggies = [
-            ('Sukuma Wiki Fresh', 'vegetables', 30, 250),
-            ('Spinach Organic', 'vegetables', 40, 220),
-            ('Cabbage Whole Head', 'vegetables', 50, 200),
-            ('Tomatoes Ripe 1kg', 'vegetables', 80, 300),
-            ('Red Onions 1kg', 'vegetables', 60, 350),
-            ('Sweet Carrots 1kg', 'vegetables', 70, 280),
-            ('Irish Potatoes 2kg', 'vegetables', 100, 320),
-            ('Green Bell Pepper', 'vegetables', 20, 250),
-            ('Fresh Cucumber', 'vegetables', 25, 230),
-            ('Crispy Lettuce', 'vegetables', 35, 200),
-            ('Broccoli Fresh', 'vegetables', 90, 180),
-            ('Cauliflower White', 'vegetables', 85, 190),
-            ('Dhania Bundle Fresh', 'vegetables', 20, 280),
-            ('Spring Onions Bundle', 'vegetables', 25, 260),
-            ('Garlic Bulbs 250g', 'vegetables', 150, 220),
-            ('Ginger Root 250g', 'vegetables', 120, 240),
-            ('Fresh Beetroot', 'vegetables', 60, 200),
-            ('Sweet Potato 1kg', 'vegetables', 80, 250),
-            ('Pumpkin Whole', 'vegetables', 100, 180),
-            ('Fresh Eggplant', 'vegetables', 45, 210),
-            ('Red Bell Pepper', 'vegetables', 30, 200),
-            ('Yellow Bell Pepper', 'vegetables', 30, 190),
-            ('Fresh Zucchini', 'vegetables', 50, 170),
-            ('Button Mushrooms 250g', 'vegetables', 180, 150),
-            ('Baby Corn Pack', 'vegetables', 120, 180),
-            ('Green Beans 500g', 'vegetables', 90, 200),
-            ('Garden Peas 500g', 'vegetables', 100, 180),
-            ('Fresh Leeks', 'vegetables', 60, 160),
-            ('Fresh Celery', 'vegetables', 70, 150),
-            ('Arrowroots 1kg', 'vegetables', 110, 200),
-        ]
-        
-        for name, cat, price, stock in veggies:
-            # Check if product already exists
-            existing = Product.query.filter_by(name=name).first()
-            if not existing:
-                products.append(Product(name=name, category=cat, price=price, stock=stock, description=f'{name}'))
-        
-        if products:
-            db.session.bulk_save_objects(products)
-            db.session.commit()
-        
-        total = Product.query.count()
-        return jsonify({'success': True, 'added': len(products), 'total': total}), 200
-        
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'error': str(e)}), 500
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=False)
