@@ -612,7 +612,75 @@ def create_order():
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
+# ADD THESE ROUTES TO app.py - paste them right after the GET /api/products route
 
+@app.route('/api/products', methods=['POST'])
+@jwt_required()
+def create_product():
+    """Admin: Create new product"""
+    try:
+        data = request.get_json()
+        product = Product(
+            name=data.get('name'),
+            category=data.get('category'),
+            price=float(data.get('price', 0)),
+            stock=int(data.get('stock', 0)),
+            description=data.get('description', ''),
+            image_url=data.get('image_url', '')
+        )
+        db.session.add(product)
+        db.session.commit()
+        return jsonify({'message': 'Product created', 'product': product.to_dict()}), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/products/<int:product_id>', methods=['PUT'])
+@jwt_required()
+def update_product(product_id):
+    """Admin: Update product"""
+    try:
+        product = Product.query.get(product_id)
+        if not product:
+            return jsonify({'error': 'Product not found'}), 404
+
+        data = request.get_json()
+        if data.get('name'):
+            product.name = data['name']
+        if data.get('price') is not None:
+            product.price = float(data['price'])
+        if data.get('stock') is not None:
+            product.stock = int(data['stock'])
+        if data.get('category'):
+            product.category = data['category']
+        if data.get('description') is not None:
+            product.description = data['description']
+        if data.get('image_url') is not None:
+            product.image_url = data['image_url']
+
+        db.session.commit()
+        return jsonify({'message': 'Product updated', 'product': product.to_dict()}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/products/<int:product_id>', methods=['DELETE'])
+@jwt_required()
+def delete_product(product_id):
+    """Admin: Delete product"""
+    try:
+        product = Product.query.get(product_id)
+        if not product:
+            return jsonify({'error': 'Product not found'}), 404
+
+        db.session.delete(product)
+        db.session.commit()
+        return jsonify({'message': 'Product deleted'}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
 # ============================================
 # ADMIN ROUTES
 # ============================================
