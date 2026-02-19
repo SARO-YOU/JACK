@@ -28,7 +28,7 @@ export const AuthProvider = ({ children }) => {
     const res = await fetch(`${API}/api/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ identifier, password }),
+      body: JSON.stringify({ identifier: identifier.trim(), password }),
     });
 
     const data = await res.json();
@@ -49,7 +49,7 @@ export const AuthProvider = ({ children }) => {
     const res = await fetch(`${API}/api/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, email, password, phone }),
+      body: JSON.stringify({ name: name.trim(), email: email.trim(), password, phone: phone.trim() }),
     });
 
     const data = await res.json();

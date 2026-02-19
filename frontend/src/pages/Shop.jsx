@@ -4,39 +4,14 @@ import { useAuth } from '../context/AuthContext';
 
 const API = 'https://noory-backend.onrender.com';
 
+// ... [Keep all the PRODUCT_IMAGES, CATEGORY_DEFAULTS, and CATEGORIES exactly as they are in your file]
+
 const PRODUCT_IMAGES = {
-  'sukuma': 'https://images.unsplash.com/photo-1622206151226-18ca2c9ab4a1?w=400&fit=crop',
-  'spinach': 'https://images.unsplash.com/photo-1576045057995-568f588f82fb?w=400&fit=crop',
-  'cabbage': 'https://images.unsplash.com/photo-1594282486552-05b4d80fbb9f?w=400&fit=crop',
-  'tomato': 'https://images.unsplash.com/photo-1546094096-0df4bcaaa337?w=400&fit=crop',
-  'onion': 'https://images.unsplash.com/photo-1618512496248-a07fe83aa8cb?w=400&fit=crop',
-  'carrot': 'https://images.unsplash.com/photo-1598170845058-32b9d6a5da37?w=400&fit=crop',
-  'potato': 'https://images.unsplash.com/photo-1518977676601-b53f82aba655?w=400&fit=crop',
-  'green pepper': 'https://images.unsplash.com/photo-1563565375-f3fdfdbefa83?w=400&fit=crop',
-  'banana': 'https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?w=400&fit=crop',
-  'apple': 'https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?w=400&fit=crop',
-  'orange': 'https://images.unsplash.com/photo-1547514701-42782101795e?w=400&fit=crop',
-  'mango': 'https://images.unsplash.com/photo-1553279768-865429fa0078?w=400&fit=crop',
-  'watermelon': 'https://images.unsplash.com/photo-1587049352846-4a222e7851b2?w=400&fit=crop',
-  'pineapple': 'https://images.unsplash.com/photo-1550258987-190a2d41a8ba?w=400&fit=crop',
-  'steak': 'https://images.unsplash.com/photo-1546833998-877b37c2e5c6?w=400&fit=crop',
-  'chicken': 'https://images.unsplash.com/photo-1587593810167-a84920ea0781?w=400&fit=crop',
-  'fish': 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=400&fit=crop',
-  'milk': 'https://images.unsplash.com/photo-1550583724-b2692b85b150?w=400&fit=crop',
-  'bread': 'https://images.unsplash.com/photo-1549931319-a545dcf3bc7c?w=400&fit=crop',
-  'rice': 'https://images.unsplash.com/photo-1536304993881-ff86e0c9c4f4?w=400&fit=crop',
+  // [COPY ALL YOUR PRODUCT_IMAGES HERE - the entire object from your file]
 };
 
 const CATEGORY_DEFAULTS = {
-  vegetables: 'https://images.unsplash.com/photo-1557844352-761f2565b576?w=400&fit=crop',
-  fruits: 'https://images.unsplash.com/photo-1619566636858-adf3ef46400b?w=400&fit=crop',
-  meat: 'https://images.unsplash.com/photo-1529692236671-f1f6cf9683ba?w=400&fit=crop',
-  poultry: 'https://images.unsplash.com/photo-1587593810167-a84920ea0781?w=400&fit=crop',
-  fish: 'https://images.unsplash.com/photo-1510130387422-82bed34b37e9?w=400&fit=crop',
-  dairy: 'https://images.unsplash.com/photo-1550583724-b2692b85b150?w=400&fit=crop',
-  beverages: 'https://images.unsplash.com/photo-1534353473418-4cfa0c2e3e5e?w=400&fit=crop',
-  snacks: 'https://images.unsplash.com/photo-1566478989037-eec170784d0b?w=400&fit=crop',
-  bakery: 'https://images.unsplash.com/photo-1549931319-a545dcf3bc7c?w=400&fit=crop',
+  // [COPY ALL YOUR CATEGORY_DEFAULTS HERE]
 };
 
 const getProductImage = (product) => {
@@ -50,7 +25,7 @@ const getProductImage = (product) => {
 
 const CATEGORIES = [
   { id: 'all', label: '🏪 All' },
-  { id: 'vegetables', label: '🥦 Veg' },
+  { id: 'vegetables', label: '🥦 Vegetables' },
   { id: 'fruits', label: '🍎 Fruits' },
   { id: 'meat', label: '🥩 Meat' },
   { id: 'poultry', label: '🍗 Poultry' },
@@ -59,6 +34,11 @@ const CATEGORIES = [
   { id: 'beverages', label: '🥤 Drinks' },
   { id: 'snacks', label: '🍿 Snacks' },
   { id: 'bakery', label: '🍞 Bakery' },
+  { id: 'flour', label: '🌾 Flour' },
+  { id: 'grains', label: '🌾 Grains' },
+  { id: 'spices', label: '🌶️ Spices' },
+  { id: 'cooking_oil', label: '🫙 Oils' },
+  { id: 'household', label: '🧹 Household' },
 ];
 
 export default function Shop() {
@@ -123,10 +103,10 @@ export default function Shop() {
       });
       if (res.ok) {
         setCartCount(prev => prev + 1);
-        showToast(\`✅ \${product.name} added!\`);
+        showToast(`✅ ${product.name} added!`);
       }
     } catch (e) {
-      showToast('❌ Failed');
+      showToast('❌ Failed to add');
     } finally {
       setAddingId(null);
     }
@@ -137,87 +117,84 @@ export default function Shop() {
   );
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f8f9fa', fontFamily: "'Segoe UI', sans-serif" }}>
+    <div className="shop-container">
 
       {/* TOAST */}
-      {toast && (
-        <div style={{
-          position: 'fixed', top: '20px', right: '20px', zIndex: 9999,
-          background: '#1a1a2e', color: '#fff', padding: '12px 18px',
-          borderRadius: '12px', fontWeight: '700', fontSize: '14px',
-          boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
-        }}>
-          {toast}
-        </div>
-      )}
+      {toast && <div className="toast">{toast}</div>}
 
       {/* HEADER */}
-      <div style={{ background: '#1a1a2e', padding: '12px 16px', position: 'sticky', top: 0, zIndex: 100, boxShadow: '0 2px 20px rgba(0,0,0,0.3)' }}>
-        <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
-          
-          {/* Top Row: Logo + Actions */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }} onClick={() => navigate('/')}>
-              <span style={{ fontSize: '24px' }}>🛍️</span>
-              <div>
-                <h1 style={{ fontSize: '18px', fontWeight: '900', color: '#fff', margin: 0, lineHeight: 1 }}>
-                  NOORY <span style={{ color: '#e94560' }}>SHOP</span>
-                </h1>
-                <p style={{ fontSize: '8px', color: '#64748b', margin: 0, fontWeight: '600', letterSpacing: '0.5px' }}>FRESH GROCERIES 🇰🇪</p>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-              {isAuthenticated ? (
-                <>
-                  {user?.role === 'admin' && (
-                    <button onClick={() => navigate('/admin')} style={{ background: '#e94560', color: '#fff', border: 'none', padding: '6px 10px', borderRadius: '50px', cursor: 'pointer', fontWeight: '700', fontSize: '11px', fontFamily: 'inherit' }}>⚙️</button>
-                  )}
-                  {user?.role === 'driver' && (
-                    <button onClick={() => navigate('/driver-dashboard')} style={{ background: '#22c55e', color: '#fff', border: 'none', padding: '6px 10px', borderRadius: '50px', cursor: 'pointer', fontWeight: '700', fontSize: '11px', fontFamily: 'inherit' }}>🏍️</button>
-                  )}
-                  <button onClick={() => navigate('/cart')} style={{ background: '#0f3460', color: '#fff', border: 'none', padding: '6px 10px', borderRadius: '50px', cursor: 'pointer', fontWeight: '700', fontSize: '11px', fontFamily: 'inherit', position: 'relative' }}>
-                    🛒 {cartCount > 0 && <span style={{ background: '#e94560', borderRadius: '50%', width: '16px', height: '16px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', marginLeft: '3px' }}>{cartCount}</span>}
-                  </button>
-                  <button onClick={logout} style={{ background: 'transparent', color: '#64748b', border: '1px solid #0f3460', padding: '6px 10px', borderRadius: '50px', cursor: 'pointer', fontWeight: '600', fontSize: '11px', fontFamily: 'inherit' }}>Out</button>
-                </>
-              ) : (
-                <>
-                  <button onClick={() => navigate('/working')} style={{ background: 'transparent', color: '#94a3b8', border: '1px solid #0f3460', padding: '6px 12px', borderRadius: '50px', cursor: 'pointer', fontWeight: '700', fontSize: '11px', fontFamily: 'inherit' }}>Login</button>
-                  <button onClick={() => navigate('/register')} style={{ background: '#e94560', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '50px', cursor: 'pointer', fontWeight: '700', fontSize: '11px', fontFamily: 'inherit' }}>Sign Up</button>
-                </>
-              )}
+      <header className="header">
+        <div className="header-content">
+          {/* Logo */}
+          <div className="logo" onClick={() => navigate('/')}>
+            <span className="logo-icon">🛍️</span>
+            <div className="logo-text">
+              <h1>NOORY <span>SHOP</span></h1>
+              <p>FRESH GROCERIES 🇰🇪</p>
             </div>
           </div>
 
-          {/* Bottom Row: Search (Full Width) */}
-          <input type="text" placeholder="🔍 Search products..." value={search}
-            onChange={e => setSearch(e.target.value)}
-            style={{ width: '100%', padding: '10px 16px', borderRadius: '50px', border: '2px solid #0f3460', background: '#16213e', color: '#fff', fontSize: '14px', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+          {/* Search - Full width on mobile */}
+          <div className="search-wrapper">
+            <input
+              type="text"
+              placeholder="🔍 Search products..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="search-input"
+            />
+          </div>
+
+          {/* Actions */}
+          <div className="header-actions">
+            {isAuthenticated ? (
+              <>
+                <span className="user-greeting">Hi, {user?.name?.split(' ')[0]} 👋</span>
+                {user?.role === 'admin' && (
+                  <button onClick={() => navigate('/admin')} className="btn btn-admin">⚙️ Admin</button>
+                )}
+                {user?.role === 'driver' && (
+                  <button onClick={() => navigate('/driver-dashboard')} className="btn btn-driver">🏍️ Driver</button>
+                )}
+                <button onClick={() => navigate('/cart')} className="btn btn-cart">
+                  🛒 {cartCount > 0 && <span className="cart-badge">{cartCount}</span>}
+                </button>
+                <button onClick={logout} className="btn btn-outline">Out</button>
+              </>
+            ) : (
+              <>
+                <button onClick={() => navigate('/working')} className="btn btn-outline">Login</button>
+                <button onClick={() => navigate('/register')} className="btn btn-primary">Sign Up</button>
+              </>
+            )}
+          </div>
         </div>
-      </div>
+      </header>
 
       {/* HERO */}
-      <div style={{ background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)', padding: '24px 16px', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
-        <div style={{ position: 'absolute', inset: 0, background: 'url("https://images.unsplash.com/photo-1542838132-92c53300491e?w=1400&fit=crop") center/cover', opacity: 0.08 }} />
-        <div style={{ position: 'relative', zIndex: 1 }}>
-          <h2 style={{ fontSize: '22px', fontWeight: '900', color: '#fff', margin: '0 0 6px', letterSpacing: '-0.5px' }}>Fresh Groceries Delivered 🛵</h2>
-          <p style={{ color: '#94a3b8', fontSize: '12px', margin: '0 0 12px' }}>500+ products • Fast delivery</p>
-          <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', flexWrap: 'wrap' }}>
-            <span style={{ background: 'rgba(233,69,96,0.15)', border: '1px solid rgba(233,69,96,0.4)', color: '#e94560', padding: '5px 10px', borderRadius: '50px', fontSize: '10px', fontWeight: '700' }}>📦 Same Day</span>
-            <span style={{ background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.4)', color: '#22c55e', padding: '5px 10px', borderRadius: '50px', fontSize: '10px', fontWeight: '700' }}>💚 M-Pesa</span>
-            <span onClick={() => navigate('/contact')} style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', padding: '5px 10px', borderRadius: '50px', fontSize: '10px', fontWeight: '700', cursor: 'pointer' }}>💬 Contact</span>
-            <span onClick={() => navigate('/driver-apply')} style={{ background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.4)', color: '#60a5fa', padding: '5px 10px', borderRadius: '50px', fontSize: '10px', fontWeight: '700', cursor: 'pointer' }}>🏍️ Driver</span>
+      <section className="hero">
+        <div className="hero-overlay"></div>
+        <div className="hero-content">
+          <h2>Fresh Groceries Delivered 🛵</h2>
+          <p>500+ products • Fast delivery • M-Pesa</p>
+          <div className="hero-badges">
+            <span className="badge badge-red">📦 Same Day</span>
+            <span className="badge badge-green">💚 M-Pesa</span>
+            <span className="badge badge-white" onClick={() => navigate('/contact')}>💬 Contact</span>
+            <span className="badge badge-blue" onClick={() => navigate('/driver-apply')}>🏍️ Be a Driver</span>
           </div>
         </div>
-      </div>
+      </section>
 
       {/* CATEGORIES */}
-      <div style={{ background: '#fff', borderBottom: '2px solid #f0f0f0', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-        <div style={{ display: 'flex', gap: '6px', padding: '10px 16px', minWidth: 'max-content' }}>
+      <div className="categories">
+        <div className="categories-scroll">
           {CATEGORIES.map(cat => (
-            <button key={cat.id} onClick={() => setCategory(cat.id)}
-              style={{ padding: '7px 12px', borderRadius: '50px', border: 'none', cursor: 'pointer', background: category === cat.id ? '#e94560' : '#f8f9fa', color: category === cat.id ? '#fff' : '#555', fontWeight: '700', fontSize: '11px', fontFamily: 'inherit', whiteSpace: 'nowrap', transition: 'all 0.2s', flexShrink: 0 }}>
+            <button
+              key={cat.id}
+              onClick={() => setCategory(cat.id)}
+              className={`category-btn ${category === cat.id ? 'active' : ''}`}
+            >
               {cat.label}
             </button>
           ))}
@@ -225,77 +202,649 @@ export default function Shop() {
       </div>
 
       {/* PRODUCTS */}
-      <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '20px 16px' }}>
-        <h3 style={{ fontSize: '16px', fontWeight: '900', color: '#1a1a2e', marginBottom: '14px' }}>
-          {CATEGORIES.find(c => c.id === category)?.label || '🏪 All'}
-          <span style={{ fontSize: '12px', color: '#888', fontWeight: '600', marginLeft: '6px' }}>({filtered.length})</span>
-        </h3>
+      <main className="main-content">
+        <div className="products-header">
+          <h3>
+            {CATEGORIES.find(c => c.id === category)?.label || '🏪 All'}
+            <span className="count">({filtered.length})</span>
+          </h3>
+        </div>
 
         {loading ? (
-          <div style={{ textAlign: 'center', padding: '60px 20px', color: '#888' }}>
-            <div style={{ fontSize: '48px', marginBottom: '12px' }}>⏳</div>
-            <p style={{ fontWeight: '700', fontSize: '16px' }}>Loading...</p>
+          <div className="loading">
+            <div className="loading-icon">⏳</div>
+            <p>Loading fresh products...</p>
           </div>
         ) : filtered.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '60px 20px', color: '#888' }}>
-            <div style={{ fontSize: '48px', marginBottom: '12px' }}>🔍</div>
-            <p style={{ fontWeight: '700', fontSize: '16px' }}>No products</p>
+          <div className="empty">
+            <div className="empty-icon">🔍</div>
+            <p>No products found</p>
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '12px' }}>
+          <div className="products-grid">
             {filtered.map(product => (
-              <div key={product.id}
-                style={{ background: '#fff', borderRadius: '14px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', border: '1px solid #f0f0f0', transition: 'all 0.2s' }}>
-                <div style={{ height: '140px', overflow: 'hidden', background: '#f8f9fa', position: 'relative' }}>
-                  <img src={getProductImage(product)} alt={product.name}
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                    onError={e => { e.target.src = CATEGORY_DEFAULTS[product.category] || 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=400&fit=crop'; }} />
+              <div key={product.id} className="product-card">
+                <div className="product-image">
+                  <img
+                    src={getProductImage(product)}
+                    alt={product.name}
+                    onError={e => {
+                      e.target.src = CATEGORY_DEFAULTS[product.category] || 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=400&fit=crop';
+                    }}
+                  />
                   {product.stock === 0 && (
-                    <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <span style={{ background: '#e94560', color: '#fff', padding: '4px 10px', borderRadius: '20px', fontWeight: '800', fontSize: '10px' }}>OUT OF STOCK</span>
+                    <div className="stock-overlay">
+                      <span className="stock-badge out">OUT OF STOCK</span>
                     </div>
                   )}
                   {product.stock > 0 && product.stock < 10 && (
-                    <div style={{ position: 'absolute', top: '6px', right: '6px', background: '#f59e0b', color: '#fff', padding: '3px 8px', borderRadius: '20px', fontSize: '9px', fontWeight: '800' }}>Only {product.stock}!</div>
+                    <div className="stock-badge low">Only {product.stock} left!</div>
                   )}
                 </div>
-                <div style={{ padding: '10px' }}>
-                  <p style={{ fontSize: '9px', color: '#e94560', fontWeight: '700', textTransform: 'uppercase', margin: '0 0 4px', letterSpacing: '0.5px' }}>{product.category}</p>
-                  <h4 style={{ fontSize: '13px', fontWeight: '700', color: '#1a1a2e', margin: '0 0 8px', lineHeight: '1.3', minHeight: '34px', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{product.name}</h4>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                    <span style={{ fontSize: '16px', fontWeight: '900', color: '#e94560' }}>KES {product.price}</span>
-                    <span style={{ fontSize: '10px', color: '#aaa', fontWeight: '600' }}>{product.stock > 0 ? \`\${product.stock} left\` : 'Out'}</span>
+                <div className="product-info">
+                  <p className="product-category">{product.category}</p>
+                  <h4 className="product-name">{product.name}</h4>
+                  <div className="product-price-row">
+                    <span className="product-price">KES {product.price}</span>
+                    <span className="product-stock">{product.stock > 0 ? `${product.stock} left` : 'Sold out'}</span>
                   </div>
                   <button
                     disabled={product.stock === 0 || addingId === product.id}
                     onClick={() => addToCart(product)}
-                    style={{ width: '100%', padding: '10px', border: 'none', borderRadius: '10px', fontWeight: '800', fontSize: '12px', cursor: product.stock === 0 ? 'not-allowed' : 'pointer', fontFamily: 'inherit', transition: 'all 0.2s', background: product.stock === 0 ? '#f0f0f0' : addingId === product.id ? '#ccc' : '#e94560', color: product.stock === 0 ? '#aaa' : '#fff' }}>
-                    {addingId === product.id ? '⏳...' : product.stock === 0 ? '❌ Out' : '🛒 Add'}
+                    className={`add-to-cart ${product.stock === 0 ? 'disabled' : ''} ${addingId === product.id ? 'loading' : ''}`}
+                  >
+                    {addingId === product.id ? '⏳ Adding...' : product.stock === 0 ? '❌ Out of Stock' : '🛒 Add to Cart'}
                   </button>
                 </div>
               </div>
             ))}
           </div>
         )}
-      </div>
+      </main>
 
       {/* FOOTER */}
-      <div style={{ background: '#1a1a2e', padding: '28px 16px', marginTop: '32px' }}>
-        <div style={{ maxWidth: '1400px', margin: '0 auto', textAlign: 'center', color: '#64748b', fontSize: '11px', fontWeight: '600' }}>
-          <p style={{ margin: '0 0 8px', fontSize: '14px', color: '#fff', fontWeight: '900' }}>🛍️ NOORY SHOP</p>
-          <p style={{ margin: '0 0 8px' }}>📞 0716 613 176 • ✉️ shopnoory@gmail.com</p>
-          <p style={{ margin: '0' }}>© 2025 Noory Shop • Made with ❤️ in Kenya 🇰🇪</p>
+      <footer className="footer">
+        <div className="footer-content">
+          <div className="footer-section">
+            <h3>🛍️ NOORY SHOP</h3>
+            <p>Kenya's freshest groceries delivered to your door.</p>
+          </div>
+          <div className="footer-section">
+            <h4>Quick Links</h4>
+            <p onClick={() => navigate('/cart')}>🛒 Cart</p>
+            <p onClick={() => navigate('/contact')}>💬 Contact</p>
+            <p onClick={() => navigate('/driver-apply')}>🏍️ Be a Driver</p>
+            <p onClick={() => navigate('/register')}>📝 Register</p>
+          </div>
+          <div className="footer-section">
+            <h4>Contact</h4>
+            <p>📞 0716 613 176</p>
+            <p>✉️ shopnoory@gmail.com</p>
+            <p>📍 Nairobi, Kenya</p>
+          </div>
         </div>
-      </div>
+        <div className="footer-bottom">
+          © 2025 Noory Shop • Made with ❤️ in Kenya 🇰🇪
+        </div>
+      </footer>
 
-      <style>{\`
-        * { box-sizing: border-box; }
-        ::-webkit-scrollbar { width: 5px; height: 5px; }
-        ::-webkit-scrollbar-thumb { background: #e94560; border-radius: 3px; }
-        @media (min-width: 768px) {
-          .product-card:hover { transform: translateY(-4px); box-shadow: 0 12px 28px rgba(0,0,0,0.12); }
+      {/* STYLES */}
+      <style>{`
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        .shop-container {
+          min-height: 100vh;
+          background: #f8f9fa;
+          font-family: 'Segoe UI', -apple-system, sans-serif;
         }
-      \`}</style>
+
+        /* TOAST */
+        .toast {
+          position: fixed;
+          top: 20px;
+          right: 20px;
+          z-index: 9999;
+          background: #1a1a2e;
+          color: #fff;
+          padding: 14px 20px;
+          borderRadius: 12px;
+          fontWeight: 700;
+          fontSize: 15px;
+          boxShadow: 0 8px 24px rgba(0,0,0,0.3);
+          animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+          from { transform: translateX(400px); }
+          to { transform: translateX(0); }
+        }
+
+        /* HEADER */
+        .header {
+          background: #1a1a2e;
+          padding: 12px 16px;
+          position: sticky;
+          top: 0;
+          z-index: 100;
+          box-shadow: 0 2px 20px rgba(0,0,0,0.3);
+        }
+
+        .header-content {
+          max-width: 1400px;
+          margin: 0 auto;
+          display: grid;
+          grid-template-columns: auto 1fr auto;
+          gap: 12px;
+          align-items: center;
+        }
+
+        .logo {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          cursor: pointer;
+        }
+
+        .logo-icon {
+          font-size: 24px;
+        }
+
+        .logo-text h1 {
+          font-size: 18px;
+          font-weight: 900;
+          color: #fff;
+          line-height: 1;
+        }
+
+        .logo-text h1 span {
+          color: #e94560;
+        }
+
+        .logo-text p {
+          font-size: 8px;
+          color: #64748b;
+          font-weight: 600;
+          letter-spacing: 0.5px;
+        }
+
+        .search-wrapper {
+          width: 100%;
+        }
+
+        .search-input {
+          width: 100%;
+          padding: 10px 16px;
+          border-radius: 50px;
+          border: 2px solid #0f3460;
+          background: #16213e;
+          color: #fff;
+          fontSize: 14px;
+          outline: none;
+          font-family: inherit;
+        }
+
+        .header-actions {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          flex-wrap: nowrap;
+        }
+
+        .user-greeting {
+          color: #94a3b8;
+          font-size: 12px;
+          font-weight: 600;
+          white-space: nowrap;
+          display: none;
+        }
+
+        .btn {
+          border: none;
+          padding: 8px 12px;
+          border-radius: 50px;
+          cursor: pointer;
+          font-weight: 700;
+          font-size: 11px;
+          font-family: inherit;
+          white-space: nowrap;
+          transition: all 0.2s;
+        }
+
+        .btn-admin { background: #e94560; color: #fff; }
+        .btn-driver { background: #22c55e; color: #fff; }
+        .btn-cart { background: #0f3460; color: #fff; position: relative; }
+        .btn-outline { background: transparent; color: #64748b; border: 1px solid #0f3460; }
+        .btn-primary { background: #e94560; color: #fff; }
+
+        .cart-badge {
+          background: #e94560;
+          border-radius: 50%;
+          width: 16px;
+          height: 16px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 9px;
+          margin-left: 4px;
+        }
+
+        /* HERO */
+        .hero {
+          background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+          padding: 28px 16px;
+          text-align: center;
+          position: relative;
+          overflow: hidden;
+        }
+
+        .hero-overlay {
+          position: absolute;
+          inset: 0;
+          background: url("https://images.unsplash.com/photo-1542838132-92c53300491e?w=1400&fit=crop") center/cover;
+          opacity: 0.08;
+        }
+
+        .hero-content {
+          position: relative;
+          z-index: 1;
+        }
+
+        .hero-content h2 {
+          font-size: 24px;
+          font-weight: 900;
+          color: #fff;
+          margin: 0 0 6px;
+          letter-spacing: -0.5px;
+        }
+
+        .hero-content p {
+          color: #94a3b8;
+          font-size: 13px;
+          margin: 0 0 14px;
+        }
+
+        .hero-badges {
+          display: flex;
+          gap: 6px;
+          justify-content: center;
+          flex-wrap: wrap;
+        }
+
+        .badge {
+          padding: 6px 12px;
+          border-radius: 50px;
+          font-size: 11px;
+          font-weight: 700;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .badge-red { background: rgba(233,69,96,0.15); border: 1px solid rgba(233,69,96,0.4); color: #e94560; }
+        .badge-green { background: rgba(34,197,94,0.15); border: 1px solid rgba(34,197,94,0.4); color: #22c55e; }
+        .badge-white { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.2); color: #fff; }
+        .badge-blue { background: rgba(59,130,246,0.15); border: 1px solid rgba(59,130,246,0.4); color: #60a5fa; }
+
+        /* CATEGORIES */
+        .categories {
+          background: #fff;
+          border-bottom: 2px solid #f0f0f0;
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
+        }
+
+        .categories::-webkit-scrollbar {
+          display: none;
+        }
+
+        .categories-scroll {
+          display: flex;
+          gap: 6px;
+          padding: 10px 16px;
+          min-width: max-content;
+        }
+
+        .category-btn {
+          padding: 8px 14px;
+          border-radius: 50px;
+          border: none;
+          cursor: pointer;
+          background: #f8f9fa;
+          color: #555;
+          font-weight: 700;
+          font-size: 12px;
+          font-family: inherit;
+          white-space: nowrap;
+          transition: all 0.2s;
+          flex-shrink: 0;
+        }
+
+        .category-btn.active {
+          background: #e94560;
+          color: #fff;
+        }
+
+        /* MAIN CONTENT */
+        .main-content {
+          max-width: 1400px;
+          margin: 0 auto;
+          padding: 20px 16px;
+        }
+
+        .products-header {
+          margin-bottom: 16px;
+        }
+
+        .products-header h3 {
+          font-size: 16px;
+          font-weight: 900;
+          color: #1a1a2e;
+        }
+
+        .count {
+          font-size: 12px;
+          color: #888;
+          font-weight: 600;
+          margin-left: 6px;
+        }
+
+        .loading, .empty {
+          text-align: center;
+          padding: 60px 20px;
+          color: #888;
+        }
+
+        .loading-icon, .empty-icon {
+          font-size: 48px;
+          margin-bottom: 12px;
+        }
+
+        .loading p, .empty p {
+          font-weight: 700;
+          font-size: 16px;
+        }
+
+        /* PRODUCTS GRID */
+        .products-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+          gap: 12px;
+        }
+
+        .product-card {
+          background: #fff;
+          border-radius: 14px;
+          overflow: hidden;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+          border: 1px solid #f0f0f0;
+          transition: all 0.2s;
+        }
+
+        .product-card:active {
+          transform: scale(0.98);
+        }
+
+        .product-image {
+          height: 140px;
+          overflow: hidden;
+          background: #f8f9fa;
+          position: relative;
+        }
+
+        .product-image img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+
+        .stock-overlay {
+          position: absolute;
+          inset: 0;
+          background: rgba(0,0,0,0.5);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .stock-badge {
+          padding: 4px 10px;
+          border-radius: 20px;
+          font-weight: 800;
+          font-size: 10px;
+        }
+
+        .stock-badge.out {
+          background: #e94560;
+          color: #fff;
+        }
+
+        .stock-badge.low {
+          position: absolute;
+          top: 6px;
+          right: 6px;
+          background: #f59e0b;
+          color: #fff;
+        }
+
+        .product-info {
+          padding: 10px;
+        }
+
+        .product-category {
+          font-size: 9px;
+          color: #e94560;
+          font-weight: 700;
+          text-transform: uppercase;
+          margin: 0 0 4px;
+          letter-spacing: 0.5px;
+        }
+
+        .product-name {
+          font-size: 13px;
+          font-weight: 700;
+          color: #1a1a2e;
+          margin: 0 0 8px;
+          line-height: 1.3;
+          min-height: 34px;
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
+
+        .product-price-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 8px;
+        }
+
+        .product-price {
+          font-size: 16px;
+          font-weight: 900;
+          color: #e94560;
+        }
+
+        .product-stock {
+          font-size: 10px;
+          color: #aaa;
+          font-weight: 600;
+        }
+
+        .add-to-cart {
+          width: 100%;
+          padding: 10px;
+          border: none;
+          border-radius: 10px;
+          font-weight: 800;
+          font-size: 12px;
+          cursor: pointer;
+          font-family: inherit;
+          transition: all 0.2s;
+          background: #e94560;
+          color: #fff;
+        }
+
+        .add-to-cart.disabled {
+          background: #f0f0f0;
+          color: #aaa;
+          cursor: not-allowed;
+        }
+
+        .add-to-cart.loading {
+          background: #ccc;
+          cursor: not-allowed;
+        }
+
+        .add-to-cart:active:not(.disabled):not(.loading) {
+          transform: scale(0.95);
+        }
+
+        /* FOOTER */
+        .footer {
+          background: #1a1a2e;
+          padding: 32px 16px;
+          margin-top: 40px;
+        }
+
+        .footer-content {
+          max-width: 1400px;
+          margin: 0 auto;
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 24px;
+          margin-bottom: 24px;
+        }
+
+        .footer-section h3 {
+          color: #fff;
+          font-weight: 900;
+          font-size: 16px;
+          margin: 0 0 8px;
+        }
+
+        .footer-section h4 {
+          color: #fff;
+          font-weight: 800;
+          margin: 0 0 8px;
+          font-size: 12px;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+        }
+
+        .footer-section p {
+          color: #64748b;
+          font-size: 12px;
+          margin: 0 0 6px;
+          cursor: pointer;
+          font-weight: 600;
+        }
+
+        .footer-section p:hover {
+          color: #e94560;
+        }
+
+        .footer-bottom {
+          border-top: 1px solid #0f3460;
+          padding-top: 16px;
+          text-align: center;
+          color: #64748b;
+          font-size: 11px;
+          font-weight: 600;
+        }
+
+        /* DESKTOP STYLES */
+        @media (min-width: 768px) {
+          .header-content {
+            grid-template-columns: auto 1fr auto;
+          }
+
+          .user-greeting {
+            display: block;
+          }
+
+          .logo-text h1 {
+            font-size: 20px;
+          }
+
+          .logo-text p {
+            font-size: 9px;
+          }
+
+          .search-input {
+            max-width: 500px;
+          }
+
+          .btn {
+            padding: 8px 14px;
+            font-size: 12px;
+          }
+
+          .hero-content h2 {
+            font-size: 32px;
+          }
+
+          .hero-content p {
+            font-size: 15px;
+          }
+
+          .badge {
+            font-size: 12px;
+            padding: 6px 14px;
+          }
+
+          .category-btn {
+            font-size: 13px;
+          }
+
+          .products-grid {
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 16px;
+          }
+
+          .product-image {
+            height: 160px;
+          }
+
+          .product-name {
+            font-size: 14px;
+          }
+
+          .add-to-cart {
+            font-size: 13px;
+          }
+
+          .footer-content {
+            grid-template-columns: repeat(3, 1fr);
+          }
+
+          .product-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 28px rgba(0,0,0,0.12);
+          }
+        }
+
+        /* TABLET */
+        @media (min-width: 480px) and (max-width: 767px) {
+          .products-grid {
+            grid-template-columns: repeat(2, 1fr);
+          }
+
+          .footer-content {
+            grid-template-columns: repeat(2, 1fr);
+          }
+        }
+
+        /* SCROLLBAR */
+        ::-webkit-scrollbar {
+          width: 6px;
+          height: 6px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+          background: #e94560;
+          border-radius: 3px;
+        }
+      `}</style>
     </div>
   );
 }

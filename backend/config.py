@@ -23,7 +23,13 @@ class Config:
     
     # Admin
     ADMIN_PASSWORD = os.getenv('ADMIN_PASSWORD')
-    ALLOWED_ADMIN_NAMES = ['Jacob Mae','Lilian Kaminja','Bernice Makena', 'DLQ 33', 'Immanuel Taiti']  # Change these to actual admin names
+    ALLOWED_ADMIN_NAMES = [
+        'Jacob Mae',
+        'Lillian Kaminja',   # Fixed: was 'Lilian' (one L)
+        'Bernice Makena',
+        'DLQ 33',
+        'Immanuel Taiti',
+    ]
     
     # App
     SECRET_KEY = os.getenv('SECRET_KEY')
@@ -31,3 +37,12 @@ class Config:
     
     # CORS
     CORS_HEADERS = 'Content-Type'
+
+
+def is_allowed_admin(name: str) -> bool:
+    """Case-insensitive, whitespace-tolerant admin name check."""
+    name_clean = name.strip().lower()
+    return any(
+        allowed.strip().lower() == name_clean
+        for allowed in Config.ALLOWED_ADMIN_NAMES
+    )
