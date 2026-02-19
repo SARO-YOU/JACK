@@ -1260,46 +1260,46 @@ def home():
 @app.route('/health', methods=['GET'])
 def health():
     return jsonify({'status': 'healthy'}), 200
-# Replace the old clear-customers route in app.py with this fixed version
 
-@app.route('/api/admin/clear-customers', methods=['DELETE'])
-def clear_all_customers():
-    """ONE-TIME USE: Deletes all customer accounts. DELETE THIS AFTER USE."""
-    try:
-        from sqlalchemy import text
-
-        customers = User.query.filter_by(role='customer').all()
-        customer_ids = [u.id for u in customers]
-        count = len(customer_ids)
-
-        if not count:
-            return jsonify({'message': 'No customers found'}), 200
-
-        id_list = ','.join(str(i) for i in customer_ids)
-
-        # Delete in strict FK order using raw SQL
-        db.session.execute(text(f"""
-            DELETE FROM order_item
-            WHERE order_id IN (
-                SELECT id FROM "order" WHERE user_id IN ({id_list})
-            )
-        """))
-
-        db.session.execute(text(f'DELETE FROM "order" WHERE user_id IN ({id_list})'))
-        db.session.execute(text(f'DELETE FROM cart_item WHERE user_id IN ({id_list})'))
-        db.session.execute(text(f'DELETE FROM "user" WHERE id IN ({id_list})'))
-
-        db.session.commit()
-
-        return jsonify({
-            'success': True,
-            'message': f'Successfully deleted {count} customer accounts and all their data.',
-        }), 200
-
-    except Exception as e:
-        db.session.rollback()
-        import traceback
-        return jsonify({'error': str(e), 'trace': traceback.format_exc()}), 500
-
+@app.route('/api/admin/cleanup-users', methods=['POST'])
+@jwt_required()
+def cleanup_users():
+    current_user = get_jwt_identity()
+    user = User.query.filter_by(email=current_user).first()
+    
+    if not user or user.role != 'admin':
+        return jsonify({'error': 'Admin access required'}), 403
+    
+    # Get all non-admin users
+    customers = User.query.filter(User.role != 'admin').all()
+    
+    # Count their data
+    cart_items_count = CartItem.query.filter(CartItem.user_id.in_([u.id for u in customers])).count()
+    orders_count = Order.query.filter(Order.user_id.in_([u.id for u in customers])).count()
+    
+    # Delete cart items
+    CartItem.query.filter(CartItem.user_id.in_([u.id for u in customers])).delete(synchronize_session=False)
+    
+    # Delete order items
+    order_ids = [o.id for o in Order.query.filter(Order.user_id.in_([u.id for u in customers])).all()]
+    if order_ids:
+        OrderItem.query.filter(OrderItem.order_id.in_(order_ids)).delete(synchronize_session=False)
+    
+    # Delete orders
+    Order.query.filter(Order.user_id.in_([u.id for u in customers])).delete(synchronize_session=False)
+    
+    # Delete users
+    deleted_count = len(customers)
+    for user_to_delete in customers:
+        db.session.delete(user_to_delete)
+    
+    db.session.commit()
+    
+    return jsonify({
+        'success': True,
+        'deleted_users': deleted_count,
+        'deleted_cart_items': cart_items_count,
+        'deleted_orders': orders_count
+    })
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=False)
