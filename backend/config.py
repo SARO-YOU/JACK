@@ -23,7 +23,7 @@ class Config:
     
     # Admin
     ADMIN_PASSWORD = os.getenv('ADMIN_PASSWORD')
-    ALLOWED_ADMIN_NAMES = ['Jacob Mae','Bernice Makena', 'DLQ 33', 'Immanuel Taiti']  # Change these to actual admin names
+    ALLOWED_ADMIN_NAMES = ['Jacob Mae','Lilian Kaminja','Bernice Makena', 'DLQ 33', 'Immanuel Taiti']  # Change these to actual admin names
     
     # App
     SECRET_KEY = os.getenv('SECRET_KEY')
