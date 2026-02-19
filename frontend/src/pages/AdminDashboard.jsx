@@ -261,7 +261,52 @@ const AdminDashboard = () => {
                   ))}
                 </div>
               </div>
-
+{/* Danger Zone */}
+<div style={{ ...styles.statsGrid, marginTop: '30px', borderTop: '3px solid #ef4444', paddingTop: '20px' }}>
+  <h2 style={{ ...styles.sectionTitle, color: '#ef4444' }}>⚠️ Danger Zone</h2>
+  <button
+    onClick={async () => {
+      if (!window.confirm('⚠️ DELETE ALL NON-ADMIN USERS?\n\nThis will delete:\n- All customer accounts\n- All driver accounts\n- All their orders\n- All their cart items\n\nAdmins will NOT be deleted.\n\nType DELETE in the next prompt to confirm.')) {
+        return;
+      }
+      
+      const confirm2 = window.prompt('Type DELETE to confirm:');
+      if (confirm2 !== 'DELETE') {
+        alert('Cancelled');
+        return;
+      }
+      
+      try {
+        const res = await fetch('https://noory-backend.onrender.com/api/admin/cleanup-users', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        const data = await res.json();
+        
+        if (data.success) {
+          alert(`✅ SUCCESS!\n\nDeleted:\n- ${data.deleted_users} users\n- ${data.deleted_orders} orders\n- ${data.deleted_cart_items} cart items`);
+          window.location.reload();
+        } else {
+          alert('❌ ERROR: ' + (data.error || 'Unknown error'));
+        }
+      } catch (err) {
+        alert('❌ ERROR: ' + err.message);
+      }
+    }}
+    style={{
+      ...styles.actionButton,
+      background: '#ef4444',
+      fontSize: '14px',
+      padding: '12px 20px'
+    }}
+  >
+    🗑️ Delete All Non-Admin Users
+  </button>
+</div>
               {/* Recent Orders */}
               <div style={{ background: '#fff', borderRadius: '16px', padding: '24px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
                 <h3 style={{ fontSize: '16px', fontWeight: '900', color: '#1a1a2e', margin: '0 0 16px' }}>🕒 Recent Orders</h3>
