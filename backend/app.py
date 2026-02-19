@@ -1260,53 +1260,46 @@ def home():
 @app.route('/health', methods=['GET'])
 def health():
     return jsonify({'status': 'healthy'}), 200
-
-# Add this temporary route to your app.py
-# Call it ONCE via browser or Postman: GET https://noory-backend.onrender.com/api/admin/clear-customers
-# Then DELETE this route from app.py immediately after using it!
+# Replace the old clear-customers route in app.py with this fixed version
 
 @app.route('/api/admin/clear-customers', methods=['DELETE'])
 def clear_all_customers():
-    """
-    ONE-TIME USE: Deletes all customer accounts + their carts + their orders.
-    Drivers and admin accounts are NOT touched.
-    DELETE THIS ROUTE after using it!
-    """
+    """ONE-TIME USE: Deletes all customer accounts. DELETE THIS AFTER USE."""
     try:
-        # Get all customer user IDs
+        from sqlalchemy import text
+
         customers = User.query.filter_by(role='customer').all()
         customer_ids = [u.id for u in customers]
+        count = len(customer_ids)
 
-        if not customer_ids:
+        if not count:
             return jsonify({'message': 'No customers found'}), 200
 
-        # Delete in correct order to avoid foreign key errors
-        # 1. Cart items
-        CartItem.query.filter(CartItem.user_id.in_(customer_ids)).delete(synchronize_session=False)
+        id_list = ','.join(str(i) for i in customer_ids)
 
-        # 2. Order items (via orders belonging to customers)
-        customer_orders = Order.query.filter(Order.user_id.in_(customer_ids)).all()
-        order_ids = [o.id for o in customer_orders]
-        if order_ids:
-            OrderItem.query.filter(OrderItem.order_id.in_(order_ids)).delete(synchronize_session=False)
+        # Delete in strict FK order using raw SQL
+        db.session.execute(text(f"""
+            DELETE FROM order_item
+            WHERE order_id IN (
+                SELECT id FROM "order" WHERE user_id IN ({id_list})
+            )
+        """))
 
-        # 3. Orders
-        Order.query.filter(Order.user_id.in_(customer_ids)).delete(synchronize_session=False)
-
-        # 4. Users
-        User.query.filter_by(role='customer').delete(synchronize_session=False)
+        db.session.execute(text(f'DELETE FROM "order" WHERE user_id IN ({id_list})'))
+        db.session.execute(text(f'DELETE FROM cart_item WHERE user_id IN ({id_list})'))
+        db.session.execute(text(f'DELETE FROM "user" WHERE id IN ({id_list})'))
 
         db.session.commit()
 
         return jsonify({
             'success': True,
-            'message': f'Deleted {len(customers)} customer accounts and all their data.',
-            'deleted_users': len(customers),
-            'deleted_orders': len(order_ids) if order_ids else 0,
+            'message': f'Successfully deleted {count} customer accounts and all their data.',
         }), 200
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        import traceback
+        return jsonify({'error': str(e), 'trace': traceback.format_exc()}), 500
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=False)
