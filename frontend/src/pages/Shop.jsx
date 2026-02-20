@@ -541,13 +541,13 @@ export default function Shop() {
           </div>
           <div className="footer-section">
             <h4>Contact</h4>
-            <p>📞 0716 613 176</p>
+            <p>📞 0756967304</p>
             <p>✉️ shopnoory@gmail.com</p>
             <p>📍 Nairobi, Kenya</p>
           </div>
         </div>
         <div className="footer-bottom">
-          © 2025 Noory Shop • Made with ❤️ in Kenya 🇰🇪
+          © 2026 Noory Shop • Made with ❤️ in Kenya 🇰🇪
         </div>
       </footer>
 
