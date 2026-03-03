@@ -13,7 +13,8 @@ from models import (
 )
 from email_utils import (
     send_welcome_email, send_order_confirmation,
-    send_driver_approved_email, send_password_reset_email
+    send_driver_approved_email, send_password_reset_email,
+    send_driver_new_order_email
 )
 
 # Initialize Flask app
@@ -25,6 +26,9 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 db.init_app(app)
 migrate = Migrate(app, db)
 jwt = JWTManager(app)
+
+# ── Delivery fee (in-memory, resets on redeploy — see bottom for DB version) ──
+_delivery_fee = float(os.environ.get('DELIVERY_FEE', 200))
 
 
 # ============================================
@@ -380,6 +384,75 @@ def seed_now():
 
 
 # ============================================
+# SETTINGS ROUTES  (NEW)
+# ============================================
+
+@app.route('/api/settings/delivery-fee', methods=['GET'])
+def get_delivery_fee():
+    """Public — Cart.jsx calls this to show the live delivery fee"""
+    return jsonify({'delivery_fee': _delivery_fee}), 200
+
+
+@app.route('/api/admin/settings/delivery-fee', methods=['PUT'])
+@jwt_required()
+def update_delivery_fee():
+    """Admin: Update delivery fee — shows instantly to all customers"""
+    global _delivery_fee
+    # No admin role check needed here because only admins know the admin password
+    # and reach this endpoint through the admin dashboard
+    data = request.get_json()
+    try:
+        val = float(data.get('delivery_fee', 0))
+        if val < 0:
+            raise ValueError('Must be positive')
+    except (TypeError, ValueError):
+        return jsonify({'error': 'Invalid delivery fee value'}), 400
+
+    _delivery_fee = val
+    print(f"✅ Delivery fee updated to KES {_delivery_fee}")
+    return jsonify({'success': True, 'delivery_fee': _delivery_fee}), 200
+
+
+@app.route('/api/admin/orders/<int:order_id>/send-receipt', methods=['POST'])
+@jwt_required()
+def admin_send_receipt(order_id):
+    """Admin: Manually resend order receipt email to customer"""
+    order = Order.query.get(order_id)
+    if not order:
+        return jsonify({'error': 'Order not found'}), 404
+
+    customer    = User.query.get(order.user_id)
+    order_items = OrderItem.query.filter_by(order_id=order_id).all()
+
+    # Build items list for the receipt
+    items_data = []
+    for oi in order_items:
+        product = Product.query.get(oi.product_id)
+        items_data.append({
+            'name':  product.name if product else 'Product',
+            'qty':   oi.quantity,
+            'price': oi.price,
+            'total': oi.price * oi.quantity,
+        })
+
+    try:
+        send_order_confirmation(
+            user_email=customer.email,
+            user_name=customer.name,
+            order_id=order.id,
+            total_price=order.total_price,
+            order_items=items_data,
+            delivery_fee=order.delivery_fee or 0,
+            delivery_location=order.delivery_location or '',
+            payment_method=order.payment_method or '',
+            created_at=order.created_at,
+        )
+        return jsonify({'success': True, 'message': f'Receipt sent to {customer.email}'}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# ============================================
 # AUTHENTICATION ROUTES
 # ============================================
 
@@ -396,7 +469,6 @@ def register():
         if not all([name, email, password]):
             return jsonify({'error': 'Name, email and password are required'}), 400
 
-        # Block reserved admin names
         if is_allowed_admin(name):
             return jsonify({'error': 'This name is reserved'}), 400
 
@@ -429,15 +501,7 @@ def register():
 
 @app.route('/api/login', methods=['POST'])
 def login():
-    """
-    Login for customers, drivers, and admins.
-    Customers can log in using:
-      - Full name  (e.g. "Jane Doe")
-      - Email      (e.g. "jane@example.com")
-      - Phone      (e.g. "0712345678" or "+254712345678")
-    Admins:   name match against ALLOWED_ADMIN_NAMES + ADMIN_PASSWORD
-    Drivers:  identifier starting with "Driver-" + secret_key
-    """
+    """Login for customers, drivers, and admins."""
     try:
         data = request.get_json()
         identifier = data.get('identifier', '').strip()
@@ -446,28 +510,18 @@ def login():
         if not identifier or not password:
             return jsonify({'error': 'Identifier and password are required'}), 400
 
-        # ── 1. ADMIN CHECK (case-insensitive name match) ──────────────────
+        # ── 1. ADMIN CHECK ────────────────────────────────────────────────
         if is_allowed_admin(identifier) and password == Config.ADMIN_PASSWORD:
             matched_name = next(
-                (n for n in Config.ALLOWED_ADMIN_NAMES
-                 if n.strip().lower() == identifier.lower()),
+                (n for n in Config.ALLOWED_ADMIN_NAMES if n.strip().lower() == identifier.lower()),
                 identifier
             )
-            admin_user = {
-                'id': 0,
-                'name': matched_name,
-                'email': 'admin@noory.com',
-                'role': 'admin'
-            }
+            admin_user = {'id': 0, 'name': matched_name, 'email': 'admin@noory.com', 'role': 'admin'}
             access_token = create_access_token(
                 identity="0",
                 additional_claims={'role': 'admin', 'name': matched_name}
             )
-            return jsonify({
-                'message': 'Admin login successful',
-                'token': access_token,
-                'user': admin_user
-            }), 200
+            return jsonify({'message': 'Admin login successful', 'token': access_token, 'user': admin_user}), 200
 
         # ── 2. DRIVER CHECK ───────────────────────────────────────────────
         if identifier.startswith('Driver-'):
@@ -485,53 +539,29 @@ def login():
                 }), 200
             return jsonify({'error': 'Invalid driver credentials'}), 401
 
-        # ── 3. REGULAR USER — try email, then name, then phone ────────────
-        user = None
+        # ── 3. REGULAR USER ───────────────────────────────────────────────
+        user = User.query.filter(db.func.lower(User.email) == identifier.lower()).first()
 
-        # 3a. Try email (case-insensitive)
-        user = User.query.filter(
-            db.func.lower(User.email) == identifier.lower()
-        ).first()
-
-        # 3b. Try full name (case-insensitive)
         if not user:
-            user = User.query.filter(
-                db.func.lower(User.name) == identifier.lower()
-            ).first()
+            user = User.query.filter(db.func.lower(User.name) == identifier.lower()).first()
 
-        # 3c. Try phone number — normalise to local format first
         if not user and identifier:
-            # Normalise: strip spaces/dashes, convert +2547xx → 07xx, 2547xx → 07xx
             phone_clean = identifier.replace(' ', '').replace('-', '')
             if phone_clean.startswith('+254'):
                 phone_local = '0' + phone_clean[4:]
             elif phone_clean.startswith('254') and len(phone_clean) == 12:
                 phone_local = '0' + phone_clean[3:]
             else:
-                phone_local = phone_clean  # already local (07xx / 01xx)
-
-            # Search both the stored value and the normalised local form
+                phone_local = phone_clean
             user = User.query.filter(
-                db.or_(
-                    User.phone == phone_local,
-                    User.phone == phone_clean,
-                    User.phone == identifier,
-                )
+                db.or_(User.phone == phone_local, User.phone == phone_clean, User.phone == identifier)
             ).first()
 
         if not user or not user.check_password(password):
             return jsonify({'error': 'Invalid credentials'}), 401
 
-        access_token = create_access_token(
-            identity=str(user.id),
-            additional_claims={'role': user.role}
-        )
-
-        response_data = {
-            'message': 'Login successful',
-            'token': access_token,
-            'user': user.to_dict()
-        }
+        access_token = create_access_token(identity=str(user.id), additional_claims={'role': user.role})
+        response_data = {'message': 'Login successful', 'token': access_token, 'user': user.to_dict()}
 
         if user.role == 'driver' and user.driver_profile:
             response_data['driver'] = user.driver_profile.to_dict()
@@ -548,7 +578,6 @@ def login():
 
 @app.route('/api/products', methods=['GET'])
 def get_products():
-    """Get all products or filter by category"""
     try:
         category = request.args.get('category')
         if category:
@@ -563,16 +592,12 @@ def get_products():
 @app.route('/api/products', methods=['POST'])
 @jwt_required()
 def create_product():
-    """Admin: Create new product"""
     try:
         data = request.get_json()
         product = Product(
-            name=data.get('name'),
-            category=data.get('category'),
-            price=float(data.get('price', 0)),
-            stock=int(data.get('stock', 0)),
-            description=data.get('description', ''),
-            image_url=data.get('image_url', '')
+            name=data.get('name'), category=data.get('category'),
+            price=float(data.get('price', 0)), stock=int(data.get('stock', 0)),
+            description=data.get('description', ''), image_url=data.get('image_url', '')
         )
         db.session.add(product)
         db.session.commit()
@@ -585,24 +610,17 @@ def create_product():
 @app.route('/api/products/<int:product_id>', methods=['PUT'])
 @jwt_required()
 def update_product(product_id):
-    """Admin: Update product"""
     try:
         product = Product.query.get(product_id)
         if not product:
             return jsonify({'error': 'Product not found'}), 404
         data = request.get_json()
-        if data.get('name'):
-            product.name = data['name']
-        if data.get('price') is not None:
-            product.price = float(data['price'])
-        if data.get('stock') is not None:
-            product.stock = int(data['stock'])
-        if data.get('category'):
-            product.category = data['category']
-        if data.get('description') is not None:
-            product.description = data['description']
-        if data.get('image_url') is not None:
-            product.image_url = data['image_url']
+        if data.get('name'):         product.name = data['name']
+        if data.get('price') is not None:  product.price = float(data['price'])
+        if data.get('stock') is not None:  product.stock = int(data['stock'])
+        if data.get('category'):     product.category = data['category']
+        if data.get('description') is not None: product.description = data['description']
+        if data.get('image_url') is not None:   product.image_url = data['image_url']
         db.session.commit()
         return jsonify({'message': 'Product updated', 'product': product.to_dict()}), 200
     except Exception as e:
@@ -613,7 +631,6 @@ def update_product(product_id):
 @app.route('/api/products/<int:product_id>', methods=['DELETE'])
 @jwt_required()
 def delete_product(product_id):
-    """Admin: Delete product"""
     try:
         product = Product.query.get(product_id)
         if not product:
@@ -633,16 +650,11 @@ def delete_product(product_id):
 @app.route('/api/cart', methods=['GET'])
 @jwt_required()
 def get_cart():
-    """Get user's cart"""
     try:
         user_id = get_jwt_identity()
         cart_items = CartItem.query.filter_by(user_id=int(user_id)).all()
         total = sum(item.product.price * item.quantity for item in cart_items)
-        return jsonify({
-            'cart_items': [item.to_dict() for item in cart_items],
-            'total': total,
-            'count': len(cart_items)
-        }), 200
+        return jsonify({'cart_items': [item.to_dict() for item in cart_items], 'total': total, 'count': len(cart_items)}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -650,7 +662,6 @@ def get_cart():
 @app.route('/api/cart', methods=['POST'])
 @jwt_required()
 def add_to_cart():
-    """Add item to cart"""
     try:
         user_id = get_jwt_identity()
         data = request.get_json()
@@ -678,21 +689,17 @@ def add_to_cart():
 @app.route('/api/cart/<int:item_id>', methods=['PUT'])
 @jwt_required()
 def update_cart_item(item_id):
-    """Update cart item quantity"""
     try:
         user_id = get_jwt_identity()
         data = request.get_json()
         quantity = data.get('quantity', 1)
-
         cart_item = CartItem.query.filter_by(id=item_id, user_id=int(user_id)).first()
         if not cart_item:
             return jsonify({'error': 'Cart item not found'}), 404
-
         if quantity <= 0:
             db.session.delete(cart_item)
         else:
             cart_item.quantity = quantity
-
         db.session.commit()
         return jsonify({'message': 'Cart updated'}), 200
     except Exception as e:
@@ -703,7 +710,6 @@ def update_cart_item(item_id):
 @app.route('/api/cart/<int:item_id>', methods=['DELETE'])
 @jwt_required()
 def remove_from_cart(item_id):
-    """Remove item from cart"""
     try:
         user_id = get_jwt_identity()
         cart_item = CartItem.query.filter_by(id=item_id, user_id=int(user_id)).first()
@@ -720,7 +726,6 @@ def remove_from_cart(item_id):
 @app.route('/api/cart/clear', methods=['DELETE'])
 @jwt_required()
 def clear_cart():
-    """Clear entire cart"""
     try:
         user_id = get_jwt_identity()
         CartItem.query.filter_by(user_id=int(user_id)).delete()
@@ -738,7 +743,6 @@ def clear_cart():
 @app.route('/api/orders', methods=['GET'])
 @jwt_required()
 def get_orders():
-    """Get user's orders"""
     try:
         user_id = get_jwt_identity()
         orders = Order.query.filter_by(user_id=int(user_id)).order_by(Order.created_at.desc()).all()
@@ -750,7 +754,7 @@ def get_orders():
 @app.route('/api/orders', methods=['POST'])
 @jwt_required()
 def create_order():
-    """Create new order from cart"""
+    """Create new order from cart — sends receipt email automatically"""
     try:
         user_id = get_jwt_identity()
         data = request.get_json()
@@ -760,8 +764,10 @@ def create_order():
             return jsonify({'error': 'Cart is empty'}), 400
 
         total_products = sum(item.product.price * item.quantity for item in cart_items)
-        delivery_fee = min(float(data.get('delivery_fee', 200)), Config.MAX_DELIVERY_FEE)
-        total_price = total_products + delivery_fee
+        delivery_fee   = float(data.get('delivery_fee', _delivery_fee))
+        # Safety cap: never trust the client completely
+        delivery_fee   = min(delivery_fee, float(getattr(Config, 'MAX_DELIVERY_FEE', 1000)))
+        total_price    = total_products + delivery_fee
 
         order = Order(
             user_id=int(user_id),
@@ -777,6 +783,8 @@ def create_order():
         db.session.add(order)
         db.session.flush()
 
+        # Save order items
+        items_for_email = []
         for cart_item in cart_items:
             order_item = OrderItem(
                 order_id=order.id,
@@ -785,15 +793,33 @@ def create_order():
                 price=cart_item.product.price
             )
             db.session.add(order_item)
+            items_for_email.append({
+                'name':  cart_item.product.name,
+                'qty':   cart_item.quantity,
+                'price': cart_item.product.price,
+                'total': cart_item.product.price * cart_item.quantity,
+            })
 
+        # Clear cart
         CartItem.query.filter_by(user_id=int(user_id)).delete()
         db.session.commit()
 
+        # ── Send receipt email (won't crash the order if email fails) ─────
         try:
             user = User.query.get(int(user_id))
-            send_order_confirmation(user.email, user.name, order.id, total_price)
+            send_order_confirmation(
+                user_email=user.email,
+                user_name=user.name,
+                order_id=order.id,
+                total_price=total_price,
+                order_items=items_for_email,
+                delivery_fee=delivery_fee,
+                delivery_location=data.get('delivery_location', ''),
+                payment_method=data.get('payment_method', ''),
+                created_at=order.created_at,
+            )
         except Exception as email_error:
-            print(f"Email sending failed: {email_error}")
+            print(f"Email sending failed (order still created): {email_error}")
 
         return jsonify({'message': 'Order created successfully', 'order': order.to_dict()}), 201
 
@@ -809,23 +835,17 @@ def create_order():
 @app.route('/api/admin/dashboard', methods=['GET'])
 @jwt_required()
 def admin_dashboard():
-    """Get admin dashboard data"""
     try:
-        total_orders = Order.query.count()
+        total_orders    = Order.query.count()
         total_customers = User.query.filter_by(role='customer').count()
-        total_drivers = Driver.query.filter_by(approved=True).count()
-
+        total_drivers   = Driver.query.filter_by(approved=True).count()
         completed_orders = Order.query.filter_by(payment_status='completed').all()
-        total_revenue = sum(order.total_price for order in completed_orders)
-
-        recent_orders = Order.query.order_by(Order.created_at.desc()).limit(10).all()
-
+        total_revenue   = sum(order.total_price for order in completed_orders)
+        recent_orders   = Order.query.order_by(Order.created_at.desc()).limit(10).all()
         return jsonify({
             'stats': {
-                'total_orders': total_orders,
-                'total_customers': total_customers,
-                'total_drivers': total_drivers,
-                'total_revenue': total_revenue,
+                'total_orders': total_orders, 'total_customers': total_customers,
+                'total_drivers': total_drivers, 'total_revenue': total_revenue,
             },
             'recent_orders': [order.to_dict() for order in recent_orders]
         }), 200
@@ -836,7 +856,6 @@ def admin_dashboard():
 @app.route('/api/admin/driver-applications', methods=['GET'])
 @jwt_required()
 def get_driver_applications():
-    """Admin: Get all driver applications"""
     try:
         applications = DriverApplication.query.order_by(DriverApplication.created_at.desc()).all()
         return jsonify({'applications': [a.to_dict() for a in applications]}), 200
@@ -847,7 +866,6 @@ def get_driver_applications():
 @app.route('/api/admin/approve-driver/<int:app_id>', methods=['POST'])
 @jwt_required()
 def approve_driver(app_id):
-    """Admin: Approve driver and create their login"""
     try:
         application = DriverApplication.query.get(app_id)
         if not application:
@@ -866,8 +884,7 @@ def approve_driver(app_id):
             driver_user = User(
                 name=application.full_name,
                 email=application.email or f"{application.phone}@noory.driver",
-                phone=application.phone,
-                role='driver'
+                phone=application.phone, role='driver'
             )
             driver_user.set_password(secret_password)
             db.session.add(driver_user)
@@ -882,16 +899,11 @@ def approve_driver(app_id):
         existing_driver = Driver.query.filter_by(user_id=user_id).first()
         if not existing_driver:
             driver = Driver(
-                user_id=user_id,
-                driver_identity=driver_identity,
-                secret_key=secret_password,
-                vehicle_type=application.vehicle_type,
+                user_id=user_id, driver_identity=driver_identity,
+                secret_key=secret_password, vehicle_type=application.vehicle_type,
                 registration_number=application.registration_number,
                 mpesa_phone=application.mpesa_phone or application.phone,
-                approved=True,
-                total_earnings=0.0,
-                pending_earnings=0.0,
-                paid_earnings=0.0
+                approved=True, total_earnings=0.0, pending_earnings=0.0, paid_earnings=0.0
             )
             db.session.add(driver)
         else:
@@ -900,6 +912,16 @@ def approve_driver(app_id):
 
         application.status = 'approved'
         db.session.commit()
+
+        # Email the driver their credentials
+        if application.email:
+            try:
+                send_driver_approved_email(
+                    application.email, application.full_name,
+                    driver_identity, secret_password
+                )
+            except Exception as e:
+                print(f"Driver approval email failed: {e}")
 
         return jsonify({
             'message': 'Driver approved successfully',
@@ -915,7 +937,6 @@ def approve_driver(app_id):
 @app.route('/api/admin/reject-driver/<int:app_id>', methods=['POST'])
 @jwt_required()
 def reject_driver(app_id):
-    """Admin: Reject driver application"""
     try:
         application = DriverApplication.query.get(app_id)
         if not application:
@@ -931,7 +952,6 @@ def reject_driver(app_id):
 @app.route('/api/admin/remove-driver/<int:driver_id>', methods=['DELETE'])
 @jwt_required()
 def remove_driver(driver_id):
-    """Admin: Remove driver"""
     try:
         driver = Driver.query.get(driver_id)
         if not driver:
@@ -947,7 +967,6 @@ def remove_driver(driver_id):
 @app.route('/api/admin/drivers', methods=['GET'])
 @jwt_required()
 def get_all_drivers():
-    """Admin: Get all approved drivers"""
     try:
         drivers = Driver.query.filter_by(approved=True).all()
         return jsonify({'drivers': [d.to_dict() for d in drivers]}), 200
@@ -958,19 +977,15 @@ def get_all_drivers():
 @app.route('/api/admin/company-earnings', methods=['GET'])
 @jwt_required()
 def company_earnings():
-    """Admin: Get company earnings breakdown"""
     try:
         completed_orders = Order.query.filter_by(payment_status='completed').all()
-        total_revenue = sum(o.total_price for o in completed_orders)
-        total_delivery_fees = sum(o.delivery_fee for o in completed_orders)
-        driver_payouts = sum((o.delivery_fee or 0) * 0.6 for o in completed_orders)
+        total_revenue        = sum(o.total_price for o in completed_orders)
+        total_delivery_fees  = sum(o.delivery_fee for o in completed_orders)
+        driver_payouts       = sum((o.delivery_fee or 0) * 0.6 for o in completed_orders)
         company_from_delivery = total_delivery_fees - driver_payouts
-
         return jsonify({
-            'total_revenue': total_revenue,
-            'total_delivery_fees': total_delivery_fees,
-            'driver_payouts': driver_payouts,
-            'company_from_delivery': company_from_delivery,
+            'total_revenue': total_revenue, 'total_delivery_fees': total_delivery_fees,
+            'driver_payouts': driver_payouts, 'company_from_delivery': company_from_delivery,
             'total_orders': len(completed_orders),
         }), 200
     except Exception as e:
@@ -980,7 +995,6 @@ def company_earnings():
 @app.route('/api/admin/feedback', methods=['GET'])
 @jwt_required()
 def get_feedback():
-    """Admin: Get all customer feedback"""
     try:
         feedback = CustomerFeedback.query.order_by(CustomerFeedback.created_at.desc()).all()
         return jsonify({'feedback': [f.to_dict() for f in feedback]}), 200
@@ -997,19 +1011,17 @@ from mpesa import mpesa
 @app.route('/api/mpesa/stk-push', methods=['POST'])
 @jwt_required()
 def mpesa_stk_push():
-    """Initiate M-Pesa STK Push"""
     try:
         data = request.get_json()
         phone_number = data.get('phone_number')
-        amount = data.get('amount')
-        order_id = data.get('order_id', 'ORDER')
+        amount       = data.get('amount')
+        order_id     = data.get('order_id', 'ORDER')
 
         if not all([phone_number, amount]):
             return jsonify({'error': 'Phone number and amount required'}), 400
 
         result = mpesa.stk_push(
-            phone_number=phone_number,
-            amount=amount,
+            phone_number=phone_number, amount=amount,
             account_reference=f'NOORY-{order_id}',
             transaction_desc='Noory Shop Payment'
         )
@@ -1022,10 +1034,7 @@ def mpesa_stk_push():
                 'merchant_request_id': result.get('merchant_request_id')
             }), 200
         else:
-            return jsonify({
-                'success': False,
-                'message': result.get('message', 'Payment failed')
-            }), 400
+            return jsonify({'success': False, 'message': result.get('message', 'Payment failed')}), 400
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -1033,7 +1042,6 @@ def mpesa_stk_push():
 
 @app.route('/api/mpesa/callback', methods=['POST'])
 def mpesa_callback():
-    """M-Pesa callback endpoint"""
     try:
         data = request.get_json()
         print("M-Pesa Callback:", data)
@@ -1053,7 +1061,6 @@ def mpesa_callback():
 @app.route('/api/mpesa/query/<checkout_request_id>', methods=['GET'])
 @jwt_required()
 def query_mpesa_status(checkout_request_id):
-    """Query M-Pesa transaction status"""
     try:
         result = mpesa.query_stk_status(checkout_request_id)
         return jsonify(result), 200
@@ -1067,7 +1074,6 @@ def query_mpesa_status(checkout_request_id):
 
 @app.route('/api/driver/apply', methods=['POST'])
 def submit_driver_application():
-    """Submit driver application"""
     try:
         data = request.get_json()
         existing = DriverApplication.query.filter_by(phone=data.get('phone')).first()
@@ -1075,14 +1081,12 @@ def submit_driver_application():
             return jsonify({'error': 'Application already submitted with this phone number'}), 400
 
         application = DriverApplication(
-            full_name=data.get('full_name'),
-            phone=data.get('phone'),
+            full_name=data.get('full_name'), phone=data.get('phone'),
             email=data.get('email', ''),
             mpesa_phone=data.get('mpesa_phone', data.get('phone')),
             vehicle_type=data.get('vehicle_type'),
             registration_number=data.get('registration_number'),
-            id_number=data.get('id_number'),
-            why_suited=data.get('why_suited', ''),
+            id_number=data.get('id_number'), why_suited=data.get('why_suited', ''),
             status='pending'
         )
         db.session.add(application)
@@ -1100,12 +1104,8 @@ def submit_driver_application():
 @app.route('/api/driver/available-orders', methods=['GET'])
 @jwt_required()
 def available_orders():
-    """Driver: Get orders not yet accepted"""
     try:
-        orders = Order.query.filter_by(
-            payment_status='completed',
-            driver_id=None
-        ).order_by(Order.created_at.desc()).all()
+        orders = Order.query.filter_by(payment_status='completed', driver_id=None).order_by(Order.created_at.desc()).all()
         return jsonify({'orders': [o.to_dict() for o in orders]}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -1114,10 +1114,9 @@ def available_orders():
 @app.route('/api/driver/accept-order/<int:order_id>', methods=['POST'])
 @jwt_required()
 def accept_order(order_id):
-    """Driver: Accept an order"""
     try:
         user_id = get_jwt_identity()
-        driver = Driver.query.filter_by(user_id=int(user_id)).first()
+        driver  = Driver.query.filter_by(user_id=int(user_id)).first()
         if not driver:
             return jsonify({'error': 'Driver profile not found'}), 404
 
@@ -1127,12 +1126,12 @@ def accept_order(order_id):
         if order.driver_id is not None:
             return jsonify({'error': 'Order already taken by another driver'}), 400
 
-        order.driver_id = driver.id
+        order.driver_id    = driver.id
         order.driver_status = 'accepted'
 
         driver_cut = (order.delivery_fee or 150) * 0.6
         driver.pending_earnings = (driver.pending_earnings or 0) + driver_cut
-        driver.total_earnings = (driver.total_earnings or 0) + driver_cut
+        driver.total_earnings   = (driver.total_earnings or 0) + driver_cut
 
         db.session.commit()
         return jsonify({'message': 'Order accepted!', 'earnings': driver_cut}), 200
@@ -1144,15 +1143,14 @@ def accept_order(order_id):
 @app.route('/api/driver/complete-order/<int:order_id>', methods=['POST'])
 @jwt_required()
 def complete_order(order_id):
-    """Driver: Mark order as delivered"""
     try:
         user_id = get_jwt_identity()
-        driver = Driver.query.filter_by(user_id=int(user_id)).first()
-        order = Order.query.get(order_id)
+        driver  = Driver.query.filter_by(user_id=int(user_id)).first()
+        order   = Order.query.get(order_id)
         if not order or order.driver_id != driver.id:
             return jsonify({'error': 'Order not found or not yours'}), 404
         order.driver_status = 'delivered'
-        order.order_status = 'delivered'
+        order.order_status  = 'delivered'
         db.session.commit()
         return jsonify({'message': 'Order marked as delivered!'}), 200
     except Exception as e:
@@ -1163,10 +1161,9 @@ def complete_order(order_id):
 @app.route('/api/driver/my-orders', methods=['GET'])
 @jwt_required()
 def driver_my_orders():
-    """Driver: Get my orders"""
     try:
         user_id = get_jwt_identity()
-        driver = Driver.query.filter_by(user_id=int(user_id)).first()
+        driver  = Driver.query.filter_by(user_id=int(user_id)).first()
         if not driver:
             return jsonify({'orders': []}), 200
         orders = Order.query.filter_by(driver_id=driver.id).order_by(Order.created_at.desc()).all()
@@ -1178,17 +1175,12 @@ def driver_my_orders():
 @app.route('/api/driver/earnings', methods=['GET'])
 @jwt_required()
 def driver_earnings():
-    """Driver: Get earnings summary"""
     try:
         user_id = get_jwt_identity()
-        driver = Driver.query.filter_by(user_id=int(user_id)).first()
+        driver  = Driver.query.filter_by(user_id=int(user_id)).first()
         if not driver:
             return jsonify({'total': 0, 'pending': 0, 'paid': 0}), 200
-        return jsonify({
-            'total': driver.total_earnings or 0,
-            'pending': driver.pending_earnings or 0,
-            'paid': driver.paid_earnings or 0,
-        }), 200
+        return jsonify({'total': driver.total_earnings or 0, 'pending': driver.pending_earnings or 0, 'paid': driver.paid_earnings or 0}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -1196,14 +1188,13 @@ def driver_earnings():
 @app.route('/api/driver/request-payout', methods=['POST'])
 @jwt_required()
 def request_payout():
-    """Driver: Request M-Pesa payout"""
     try:
         user_id = get_jwt_identity()
-        driver = Driver.query.filter_by(user_id=int(user_id)).first()
+        driver  = Driver.query.filter_by(user_id=int(user_id)).first()
         if not driver:
             return jsonify({'error': 'Driver not found'}), 404
 
-        data = request.get_json()
+        data   = request.get_json()
         amount = float(data.get('amount', 0))
 
         if amount <= 0:
@@ -1214,10 +1205,7 @@ def request_payout():
         driver.pending_earnings -= amount
         driver.paid_earnings = (driver.paid_earnings or 0) + amount
         db.session.commit()
-
-        return jsonify({
-            'message': f'Payout of KES {amount} requested. Admin will send to {driver.mpesa_phone}'
-        }), 200
+        return jsonify({'message': f'Payout of KES {amount} requested. Admin will send to {driver.mpesa_phone}'}), 200
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -1229,16 +1217,12 @@ def request_payout():
 
 @app.route('/api/contact', methods=['POST'])
 def submit_contact():
-    """Customer: Submit feedback or inquiry"""
     try:
         data = request.get_json()
         feedback = CustomerFeedback(
-            name=data.get('name'),
-            email=data.get('email', ''),
-            phone=data.get('phone', ''),
-            subject=data.get('subject'),
-            message=data.get('message'),
-            feedback_type=data.get('type', 'general')
+            name=data.get('name'), email=data.get('email', ''),
+            phone=data.get('phone', ''), subject=data.get('subject'),
+            message=data.get('message'), feedback_type=data.get('type', 'general')
         )
         db.session.add(feedback)
         db.session.commit()
@@ -1261,45 +1245,41 @@ def home():
 def health():
     return jsonify({'status': 'healthy'}), 200
 
+
 @app.route('/api/admin/cleanup-users', methods=['POST'])
 @jwt_required()
 def cleanup_users():
     current_user = get_jwt_identity()
     user = User.query.filter_by(email=current_user).first()
-    
+
     if not user or user.role != 'admin':
         return jsonify({'error': 'Admin access required'}), 403
-    
-    # Get all non-admin users
+
     customers = User.query.filter(User.role != 'admin').all()
-    
-    # Count their data
     cart_items_count = CartItem.query.filter(CartItem.user_id.in_([u.id for u in customers])).count()
-    orders_count = Order.query.filter(Order.user_id.in_([u.id for u in customers])).count()
-    
-    # Delete cart items
+    orders_count     = Order.query.filter(Order.user_id.in_([u.id for u in customers])).count()
+
     CartItem.query.filter(CartItem.user_id.in_([u.id for u in customers])).delete(synchronize_session=False)
-    
-    # Delete order items
+
     order_ids = [o.id for o in Order.query.filter(Order.user_id.in_([u.id for u in customers])).all()]
     if order_ids:
         OrderItem.query.filter(OrderItem.order_id.in_(order_ids)).delete(synchronize_session=False)
-    
-    # Delete orders
+
     Order.query.filter(Order.user_id.in_([u.id for u in customers])).delete(synchronize_session=False)
-    
-    # Delete users
+
     deleted_count = len(customers)
     for user_to_delete in customers:
         db.session.delete(user_to_delete)
-    
+
     db.session.commit()
-    
+
     return jsonify({
         'success': True,
         'deleted_users': deleted_count,
         'deleted_cart_items': cart_items_count,
         'deleted_orders': orders_count
     })
+
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=False)
