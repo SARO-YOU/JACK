@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, make_response
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 from flask_migrate import Migrate
@@ -21,36 +21,30 @@ from email_utils import (
 app = Flask(__name__)
 app.config.from_object(Config)
 
-# Initialize extensions
-# Initialize Flask app
-app = Flask(__name__)
-app.config.from_object(Config)
+# ── CORS — allow everything ────────────────────────────────────────────────────
+@app.after_request
+def add_cors_headers(response):
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+    return response
 
-# Initialize extensions
-CORS(app, 
-     resources={r"/*": {"origins": "*"}},
-     allow_headers=["Content-Type", "Authorization"],
-     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-     supports_credentials=True
-)
+@app.before_request
+def handle_preflight():
+    if request.method == "OPTIONS":
+        response = make_response()
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+        return response, 200
+
+CORS(app)
 db.init_app(app)
 migrate = Migrate(app, db)
 jwt = JWTManager(app)
 
-# Handle preflight OPTIONS requests
-@app.before_request
-def handle_preflight():
-    if request.method == "OPTIONS":
-        response = jsonify({'status': 'ok'})
-        response.headers.add("Access-Control-Allow-Origin", "*")
-        response.headers.add("Access-Control-Allow-Headers", "Content-Type, Authorization")
-        response.headers.add("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-        return response, 200
-
-# ── Delivery fee (in-memory, resets on redeploy — see bottom for DB version) ──
+# ── Delivery fee ───────────────────────────────────────────────────────────────
 _delivery_fee = float(os.environ.get('DELIVERY_FEE', 200))
-
-
 # ============================================
 # SEED ENDPOINT - 500+ PRODUCTS
 # ============================================
