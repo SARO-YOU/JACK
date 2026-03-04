@@ -36,10 +36,9 @@ class Config:
 
     # App
     SECRET_KEY = os.getenv('SECRET_KEY')
-    MAX_DELIVERY_FEE = int(os.getenv('MAX_DELIVERY_FEE', 220))
+    MAX_DELIVERY_FEE = int(os.getenv('MAX_DELIVERY_FEE', 1000))
 
-    # CORS
-    CORS_HEADERS = 'Content-Type'
+    
 
 
 def is_allowed_admin(name: str) -> bool:
