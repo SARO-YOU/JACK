@@ -407,14 +407,12 @@ def seed_now():
 
 @app.route('/api/settings/delivery-fee', methods=['GET'])
 def get_delivery_fee():
-    """Public — Cart.jsx calls this to show the live delivery fee"""
     return jsonify({'delivery_fee': _delivery_fee}), 200
 
 
 @app.route('/api/admin/settings/delivery-fee', methods=['PUT'])
 @jwt_required()
 def update_delivery_fee():
-    """Admin: Update delivery fee — shows instantly to all customers"""
     global _delivery_fee
     data = request.get_json()
     try:
@@ -423,7 +421,6 @@ def update_delivery_fee():
             raise ValueError('Must be positive')
     except (TypeError, ValueError):
         return jsonify({'error': 'Invalid delivery fee value'}), 400
-
     _delivery_fee = val
     print(f"Delivery fee updated to KES {_delivery_fee}")
     return jsonify({'success': True, 'delivery_fee': _delivery_fee}), 200
@@ -432,7 +429,6 @@ def update_delivery_fee():
 @app.route('/api/admin/orders/<int:order_id>/send-receipt', methods=['POST'])
 @jwt_required()
 def admin_send_receipt(order_id):
-    """Admin: Manually resend order receipt email to customer"""
     order = Order.query.get(order_id)
     if not order:
         return jsonify({'error': 'Order not found'}), 404
@@ -462,7 +458,7 @@ def admin_send_receipt(order_id):
             payment_method=order.payment_method or '',
             created_at=order.created_at,
         )
-        return jsonify({'success': True, 'message': f'Receipt sent to {customer.email}'}), 200
+        return jsonify({'success': True, 'message': f'Receipt queued for {customer.email}'}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -473,7 +469,6 @@ def admin_send_receipt(order_id):
 
 @app.route('/api/register', methods=['POST'])
 def register():
-    """Register a new customer"""
     try:
         data = request.get_json()
         name = data.get('name', '').strip()
@@ -495,13 +490,13 @@ def register():
         db.session.add(user)
         db.session.commit()
 
-        # ── Send welcome email in background (won't block or crash registration) ──
+        # ── Queue welcome email with app context ──
         _email = email
-        _name = name
-        threading.Thread(
-            target=lambda: send_welcome_email(_email, _name),
-            daemon=True
-        ).start()
+        _name  = name
+        def _send_welcome():
+            with app.app_context():
+                send_welcome_email(_email, _name)
+        threading.Thread(target=_send_welcome, daemon=True).start()
 
         access_token = create_access_token(identity=str(user.id))
         return jsonify({
@@ -517,7 +512,6 @@ def register():
 
 @app.route('/api/login', methods=['POST'])
 def login():
-    """Login for customers, drivers, and admins."""
     try:
         data = request.get_json()
         identifier = data.get('identifier', '').strip()
@@ -557,10 +551,8 @@ def login():
 
         # ── 3. REGULAR USER ───────────────────────────────────────────────
         user = User.query.filter(db.func.lower(User.email) == identifier.lower()).first()
-
         if not user:
             user = User.query.filter(db.func.lower(User.name) == identifier.lower()).first()
-
         if not user and identifier:
             phone_clean = identifier.replace(' ', '').replace('-', '')
             if phone_clean.startswith('+254'):
@@ -578,10 +570,8 @@ def login():
 
         access_token = create_access_token(identity=str(user.id), additional_claims={'role': user.role})
         response_data = {'message': 'Login successful', 'token': access_token, 'user': user.to_dict()}
-
         if user.role == 'driver' and user.driver_profile:
             response_data['driver'] = user.driver_profile.to_dict()
-
         return jsonify(response_data), 200
 
     except Exception as e:
@@ -683,18 +673,15 @@ def add_to_cart():
         data = request.get_json()
         product_id = data.get('product_id')
         quantity = data.get('quantity', 1)
-
         product = Product.query.get(product_id)
         if not product:
             return jsonify({'error': 'Product not found'}), 404
-
         cart_item = CartItem.query.filter_by(user_id=int(user_id), product_id=product_id).first()
         if cart_item:
             cart_item.quantity += quantity
         else:
             cart_item = CartItem(user_id=int(user_id), product_id=product_id, quantity=quantity)
             db.session.add(cart_item)
-
         db.session.commit()
         return jsonify({'message': 'Item added to cart', 'cart_item': cart_item.to_dict()}), 200
     except Exception as e:
@@ -770,7 +757,6 @@ def get_orders():
 @app.route('/api/orders', methods=['POST'])
 @jwt_required()
 def create_order():
-    """Create new order from cart — sends receipt email automatically"""
     try:
         user_id = get_jwt_identity()
         data = request.get_json()
@@ -817,29 +803,25 @@ def create_order():
         CartItem.query.filter_by(user_id=int(user_id)).delete()
         db.session.commit()
 
-        # ── Send receipt email in background (won't block or crash the order) ──
-        user = User.query.get(int(user_id))
+        # ── Queue receipt email with app context ──
+        user   = User.query.get(int(user_id))
         _uemail = user.email
-        _uname = user.name
-        _oid = order.id
-        _total = total_price
-        _items = items_for_email
-        _dfee = delivery_fee
-        _dloc = data.get('delivery_location', '')
-        _pay = data.get('payment_method', '')
-        threading.Thread(
-            target=lambda: send_order_confirmation(
-                user_email=_uemail,
-                user_name=_uname,
-                order_id=_oid,
-                total_price=_total,
-                order_items=_items,
-                delivery_fee=_dfee,
-                delivery_location=_dloc,
-                payment_method=_pay,
-            ),
-            daemon=True
-        ).start()
+        _uname  = user.name
+        _oid    = order.id
+        _total  = total_price
+        _items  = items_for_email
+        _dfee   = delivery_fee
+        _dloc   = data.get('delivery_location', '')
+        _pay    = data.get('payment_method', '')
+
+        def _send_receipt():
+            with app.app_context():
+                send_order_confirmation(
+                    user_email=_uemail, user_name=_uname, order_id=_oid,
+                    total_price=_total, order_items=_items, delivery_fee=_dfee,
+                    delivery_location=_dloc, payment_method=_pay,
+                )
+        threading.Thread(target=_send_receipt, daemon=True).start()
 
         return jsonify({'message': 'Order created successfully', 'order': order.to_dict()}), 201
 
@@ -856,12 +838,12 @@ def create_order():
 @jwt_required()
 def admin_dashboard():
     try:
-        total_orders    = Order.query.count()
-        total_customers = User.query.filter_by(role='customer').count()
-        total_drivers   = Driver.query.filter_by(approved=True).count()
+        total_orders     = Order.query.count()
+        total_customers  = User.query.filter_by(role='customer').count()
+        total_drivers    = Driver.query.filter_by(approved=True).count()
         completed_orders = Order.query.filter_by(payment_status='completed').all()
-        total_revenue   = sum(order.total_price for order in completed_orders)
-        recent_orders   = Order.query.order_by(Order.created_at.desc()).limit(10).all()
+        total_revenue    = sum(order.total_price for order in completed_orders)
+        recent_orders    = Order.query.order_by(Order.created_at.desc()).limit(10).all()
         return jsonify({
             'stats': {
                 'total_orders': total_orders, 'total_customers': total_customers,
@@ -933,16 +915,16 @@ def approve_driver(app_id):
         application.status = 'approved'
         db.session.commit()
 
-        # ── Email driver credentials in background ──
+        # ── Queue driver approval email with app context ──
         if application.email:
             _demail = application.email
-            _dname = application.full_name
-            _did = driver_identity
-            _dkey = secret_password
-            threading.Thread(
-                target=lambda: send_driver_approved_email(_demail, _dname, _did, _dkey),
-                daemon=True
-            ).start()
+            _dname  = application.full_name
+            _did    = driver_identity
+            _dkey   = secret_password
+            def _send_driver():
+                with app.app_context():
+                    send_driver_approved_email(_demail, _dname, _did, _dkey)
+            threading.Thread(target=_send_driver, daemon=True).start()
 
         return jsonify({
             'message': 'Driver approved successfully',
@@ -999,10 +981,10 @@ def get_all_drivers():
 @jwt_required()
 def company_earnings():
     try:
-        completed_orders = Order.query.filter_by(payment_status='completed').all()
-        total_revenue        = sum(o.total_price for o in completed_orders)
-        total_delivery_fees  = sum(o.delivery_fee for o in completed_orders)
-        driver_payouts       = sum((o.delivery_fee or 0) * 0.6 for o in completed_orders)
+        completed_orders      = Order.query.filter_by(payment_status='completed').all()
+        total_revenue         = sum(o.total_price for o in completed_orders)
+        total_delivery_fees   = sum(o.delivery_fee for o in completed_orders)
+        driver_payouts        = sum((o.delivery_fee or 0) * 0.6 for o in completed_orders)
         company_from_delivery = total_delivery_fees - driver_payouts
         return jsonify({
             'total_revenue': total_revenue, 'total_delivery_fees': total_delivery_fees,
@@ -1033,20 +1015,17 @@ from mpesa import mpesa
 @jwt_required()
 def mpesa_stk_push():
     try:
-        data = request.get_json()
+        data         = request.get_json()
         phone_number = data.get('phone_number')
         amount       = data.get('amount')
         order_id     = data.get('order_id', 'ORDER')
-
         if not all([phone_number, amount]):
             return jsonify({'error': 'Phone number and amount required'}), 400
-
         result = mpesa.stk_push(
             phone_number=phone_number, amount=amount,
             account_reference=f'NOORY-{order_id}',
             transaction_desc='Noory Shop Payment'
         )
-
         if result.get('success'):
             return jsonify({
                 'success': True,
@@ -1056,7 +1035,6 @@ def mpesa_stk_push():
             }), 200
         else:
             return jsonify({'success': False, 'message': result.get('message', 'Payment failed')}), 400
-
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -1100,7 +1078,6 @@ def submit_driver_application():
         existing = DriverApplication.query.filter_by(phone=data.get('phone')).first()
         if existing:
             return jsonify({'error': 'Application already submitted with this phone number'}), 400
-
         application = DriverApplication(
             full_name=data.get('full_name'), phone=data.get('phone'),
             email=data.get('email', ''),
@@ -1140,20 +1117,16 @@ def accept_order(order_id):
         driver  = Driver.query.filter_by(user_id=int(user_id)).first()
         if not driver:
             return jsonify({'error': 'Driver profile not found'}), 404
-
         order = Order.query.get(order_id)
         if not order:
             return jsonify({'error': 'Order not found'}), 404
         if order.driver_id is not None:
             return jsonify({'error': 'Order already taken by another driver'}), 400
-
         order.driver_id     = driver.id
         order.driver_status = 'accepted'
-
         driver_cut = (order.delivery_fee or 150) * 0.6
         driver.pending_earnings = (driver.pending_earnings or 0) + driver_cut
         driver.total_earnings   = (driver.total_earnings or 0) + driver_cut
-
         db.session.commit()
         return jsonify({'message': 'Order accepted!', 'earnings': driver_cut}), 200
     except Exception as e:
@@ -1214,15 +1187,12 @@ def request_payout():
         driver  = Driver.query.filter_by(user_id=int(user_id)).first()
         if not driver:
             return jsonify({'error': 'Driver not found'}), 404
-
         data   = request.get_json()
         amount = float(data.get('amount', 0))
-
         if amount <= 0:
             return jsonify({'error': 'Invalid amount'}), 400
         if amount > (driver.pending_earnings or 0):
             return jsonify({'error': f'Insufficient balance. Available: KES {driver.pending_earnings}'}), 400
-
         driver.pending_earnings -= amount
         driver.paid_earnings = (driver.paid_earnings or 0) + amount
         db.session.commit()
@@ -1272,28 +1242,20 @@ def health():
 def cleanup_users():
     current_user = get_jwt_identity()
     user = User.query.filter_by(email=current_user).first()
-
     if not user or user.role != 'admin':
         return jsonify({'error': 'Admin access required'}), 403
-
     customers = User.query.filter(User.role != 'admin').all()
     cart_items_count = CartItem.query.filter(CartItem.user_id.in_([u.id for u in customers])).count()
     orders_count     = Order.query.filter(Order.user_id.in_([u.id for u in customers])).count()
-
     CartItem.query.filter(CartItem.user_id.in_([u.id for u in customers])).delete(synchronize_session=False)
-
     order_ids = [o.id for o in Order.query.filter(Order.user_id.in_([u.id for u in customers])).all()]
     if order_ids:
         OrderItem.query.filter(OrderItem.order_id.in_(order_ids)).delete(synchronize_session=False)
-
     Order.query.filter(Order.user_id.in_([u.id for u in customers])).delete(synchronize_session=False)
-
     deleted_count = len(customers)
     for user_to_delete in customers:
         db.session.delete(user_to_delete)
-
     db.session.commit()
-
     return jsonify({
         'success': True,
         'deleted_users': deleted_count,
