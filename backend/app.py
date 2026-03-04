@@ -5,6 +5,7 @@ from flask_migrate import Migrate
 from datetime import datetime, timedelta
 import secrets
 import os
+import threading
 
 from config import Config, is_allowed_admin
 from models import (
@@ -47,6 +48,7 @@ jwt = JWTManager(app)
 
 # ── Delivery fee ───────────────────────────────────────────────────────────────
 _delivery_fee = float(os.environ.get('DELIVERY_FEE', 200))
+
 # ============================================
 # SEED ENDPOINT - 500+ PRODUCTS
 # ============================================
@@ -400,7 +402,7 @@ def seed_now():
 
 
 # ============================================
-# SETTINGS ROUTES  (NEW)
+# SETTINGS ROUTES
 # ============================================
 
 @app.route('/api/settings/delivery-fee', methods=['GET'])
@@ -414,8 +416,6 @@ def get_delivery_fee():
 def update_delivery_fee():
     """Admin: Update delivery fee — shows instantly to all customers"""
     global _delivery_fee
-    # No admin role check needed here because only admins know the admin password
-    # and reach this endpoint through the admin dashboard
     data = request.get_json()
     try:
         val = float(data.get('delivery_fee', 0))
@@ -425,7 +425,7 @@ def update_delivery_fee():
         return jsonify({'error': 'Invalid delivery fee value'}), 400
 
     _delivery_fee = val
-    print(f"✅ Delivery fee updated to KES {_delivery_fee}")
+    print(f"Delivery fee updated to KES {_delivery_fee}")
     return jsonify({'success': True, 'delivery_fee': _delivery_fee}), 200
 
 
@@ -440,7 +440,6 @@ def admin_send_receipt(order_id):
     customer    = User.query.get(order.user_id)
     order_items = OrderItem.query.filter_by(order_id=order_id).all()
 
-    # Build items list for the receipt
     items_data = []
     for oi in order_items:
         product = Product.query.get(oi.product_id)
@@ -493,17 +492,18 @@ def register():
 
         user = User(name=name, email=email, phone=phone, role='customer')
         user.set_password(password)
-
         db.session.add(user)
         db.session.commit()
 
-        try:
-            send_welcome_email(email, name)
-        except Exception as email_error:
-            print(f"Email sending failed: {email_error}")
+        # ── Send welcome email in background (won't block or crash registration) ──
+        _email = email
+        _name = name
+        threading.Thread(
+            target=lambda: send_welcome_email(_email, _name),
+            daemon=True
+        ).start()
 
         access_token = create_access_token(identity=str(user.id))
-
         return jsonify({
             'message': 'Registration successful',
             'token': access_token,
@@ -631,10 +631,10 @@ def update_product(product_id):
         if not product:
             return jsonify({'error': 'Product not found'}), 404
         data = request.get_json()
-        if data.get('name'):         product.name = data['name']
-        if data.get('price') is not None:  product.price = float(data['price'])
-        if data.get('stock') is not None:  product.stock = int(data['stock'])
-        if data.get('category'):     product.category = data['category']
+        if data.get('name'):                    product.name = data['name']
+        if data.get('price') is not None:       product.price = float(data['price'])
+        if data.get('stock') is not None:       product.stock = int(data['stock'])
+        if data.get('category'):                product.category = data['category']
         if data.get('description') is not None: product.description = data['description']
         if data.get('image_url') is not None:   product.image_url = data['image_url']
         db.session.commit()
@@ -781,7 +781,6 @@ def create_order():
 
         total_products = sum(item.product.price * item.quantity for item in cart_items)
         delivery_fee   = float(data.get('delivery_fee', _delivery_fee))
-        # Safety cap: never trust the client completely
         delivery_fee   = min(delivery_fee, float(getattr(Config, 'MAX_DELIVERY_FEE', 1000)))
         total_price    = total_products + delivery_fee
 
@@ -799,7 +798,6 @@ def create_order():
         db.session.add(order)
         db.session.flush()
 
-        # Save order items
         items_for_email = []
         for cart_item in cart_items:
             order_item = OrderItem(
@@ -816,26 +814,32 @@ def create_order():
                 'total': cart_item.product.price * cart_item.quantity,
             })
 
-        # Clear cart
         CartItem.query.filter_by(user_id=int(user_id)).delete()
         db.session.commit()
 
-        # ── Send receipt email (won't crash the order if email fails) ─────
-        try:
-            user = User.query.get(int(user_id))
-            send_order_confirmation(
-                user_email=user.email,
-                user_name=user.name,
-                order_id=order.id,
-                total_price=total_price,
-                order_items=items_for_email,
-                delivery_fee=delivery_fee,
-                delivery_location=data.get('delivery_location', ''),
-                payment_method=data.get('payment_method', ''),
-                created_at=order.created_at,
-            )
-        except Exception as email_error:
-            print(f"Email sending failed (order still created): {email_error}")
+        # ── Send receipt email in background (won't block or crash the order) ──
+        user = User.query.get(int(user_id))
+        _uemail = user.email
+        _uname = user.name
+        _oid = order.id
+        _total = total_price
+        _items = items_for_email
+        _dfee = delivery_fee
+        _dloc = data.get('delivery_location', '')
+        _pay = data.get('payment_method', '')
+        threading.Thread(
+            target=lambda: send_order_confirmation(
+                user_email=_uemail,
+                user_name=_uname,
+                order_id=_oid,
+                total_price=_total,
+                order_items=_items,
+                delivery_fee=_dfee,
+                delivery_location=_dloc,
+                payment_method=_pay,
+            ),
+            daemon=True
+        ).start()
 
         return jsonify({'message': 'Order created successfully', 'order': order.to_dict()}), 201
 
@@ -929,15 +933,16 @@ def approve_driver(app_id):
         application.status = 'approved'
         db.session.commit()
 
-        # Email the driver their credentials
+        # ── Email driver credentials in background ──
         if application.email:
-            try:
-                send_driver_approved_email(
-                    application.email, application.full_name,
-                    driver_identity, secret_password
-                )
-            except Exception as e:
-                print(f"Driver approval email failed: {e}")
+            _demail = application.email
+            _dname = application.full_name
+            _did = driver_identity
+            _dkey = secret_password
+            threading.Thread(
+                target=lambda: send_driver_approved_email(_demail, _dname, _did, _dkey),
+                daemon=True
+            ).start()
 
         return jsonify({
             'message': 'Driver approved successfully',
@@ -1142,7 +1147,7 @@ def accept_order(order_id):
         if order.driver_id is not None:
             return jsonify({'error': 'Order already taken by another driver'}), 400
 
-        order.driver_id    = driver.id
+        order.driver_id     = driver.id
         order.driver_status = 'accepted'
 
         driver_cut = (order.delivery_fee or 150) * 0.6
